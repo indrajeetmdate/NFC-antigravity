@@ -8,6 +8,7 @@ interface ProfileContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  error: Error | null;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -18,6 +19,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const mounted = useRef(true);
 
   // Fetch profile helper
@@ -27,25 +29,25 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
+    if (mounted.current) setError(null);
+
     try {
-      const { data, error } = await supabase
+      const { data, error: apiError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', currentSession.user.id)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
+      if (apiError) {
+        throw apiError;
       }
 
       if (mounted.current) {
-        // maybeSingle returns null data if no row found, which is valid for new users
         setProfile(data as Profile | null);
       }
-    } catch (error) {
-      console.error('Unexpected error fetching profile:', error);
-      // We don't set profile to null here to preserve potential stale data or avoid UI flicker
-      // but if it was null, it stays null.
+    } catch (err: any) {
+      console.error('Error fetching profile:', err);
+      if (mounted.current) setError(err);
     }
   }, []);
 
@@ -73,8 +75,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             await fetchProfile(initialSession);
           }
         }
-      } catch (error) {
-        console.error("Auth initialization error:", error);
+      } catch (err: any) {
+        console.error("Auth initialization error:", err);
+        if (mounted.current) setError(err);
       } finally {
         if (mounted.current) {
           setLoading(false);
@@ -92,19 +95,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setSession(newSession);
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        // If we already have a profile and the user ID hasn't changed, we might not need to refetch?
-        // But to be safe and "lag-free", we can fetch in background if not loading.
-        // If we are loading (initial boot), we wait for it.
-
-        // However, to fix "stuck", let's be explicit:
         if (newSession) await fetchProfile(newSession);
       } else if (event === 'SIGNED_OUT') {
         setProfile(null);
-        setLoading(false); // Immediate release on logout
+        setLoading(false);
       }
-
-      // Note: We don't forcefully set loading=false here for INITIAL_SESSION because `initAuth` handles the primary loading state.
-      // For other events like SIGNED_IN (manual login), we might want to ensure loading is handled if Auth component relies on it.
     });
 
     return () => {
@@ -125,6 +120,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSession(null);
     setProfile(null);
     setLoading(false);
+    setError(null);
 
     try {
       await supabase.auth.signOut();
@@ -134,7 +130,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   return (
-    <ProfileContext.Provider value={{ profile, session, loading, refreshProfile, signOut: handleSignOut }}>
+    <ProfileContext.Provider value={{ profile, session, loading, error, refreshProfile, signOut: handleSignOut }}>
       {children}
     </ProfileContext.Provider>
   );
