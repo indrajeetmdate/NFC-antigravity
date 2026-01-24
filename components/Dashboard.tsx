@@ -78,7 +78,15 @@ const Dashboard: React.FC = () => {
             Start Designing &rarr;
           </Link>
 
-          <div className="mt-6">
+          <div className="mt-8 flex items-center justify-center gap-6">
+            <button
+              onClick={() => refreshProfile()}
+              className="text-sm text-zinc-400 hover:text-gold transition-colors flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              Reload
+            </button>
+            <span className="text-zinc-700">|</span>
             <button
               onClick={() => { signOut(); navigate('/login'); }}
               className="text-sm text-zinc-500 hover:text-white underline decoration-zinc-700 underline-offset-4 transition-colors"
