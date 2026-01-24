@@ -9,6 +9,7 @@ interface ProfileContextType {
   session: Session | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -119,8 +120,21 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [fetchProfile, session]);
 
+  const handleSignOut = useCallback(async () => {
+    // Optimistic clear to prevent redirect race conditions
+    setSession(null);
+    setProfile(null);
+    setLoading(false);
+
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  }, []);
+
   return (
-    <ProfileContext.Provider value={{ profile, session, loading, refreshProfile }}>
+    <ProfileContext.Provider value={{ profile, session, loading, refreshProfile, signOut: handleSignOut }}>
       {children}
     </ProfileContext.Provider>
   );
