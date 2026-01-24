@@ -5,6 +5,7 @@ import Auth from './components/Auth';
 import Home from './components/Home';
 import { ProfileProvider } from './context/ProfileContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import VersionCheck from './components/VersionCheck';
 
 // Lazy load heavy components
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
@@ -25,6 +26,7 @@ const LoadingSpinner = () => (
 function App() {
   return (
     <HashRouter>
+      <VersionCheck />
       <ErrorBoundary>
         <ProfileProvider>
           <Layout>
