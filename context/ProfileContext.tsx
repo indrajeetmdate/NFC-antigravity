@@ -36,10 +36,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (error) {
         console.error('Error fetching profile:', error);
       }
-      
+
       if (mounted.current) {
-         // maybeSingle returns null data if no row found, which is valid for new users
-         setProfile(data as Profile | null);
+        // maybeSingle returns null data if no row found, which is valid for new users
+        setProfile(data as Profile | null);
       }
     } catch (error) {
       console.error('Unexpected error fetching profile:', error);
@@ -51,52 +51,59 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     mounted.current = true;
 
-    // Safety timeout to ensure loading doesn't stick forever (e.g. network issues)
+    // Fallback safety (keep as last resort)
     const safetyTimeout = setTimeout(() => {
-        if (mounted.current && loading) {
-            console.warn("Auth initialization timed out - forcing app load");
-            setLoading(false);
-        }
-    }, 5000); // 5 seconds max for initial load
+      if (mounted.current && loading) {
+        console.warn("Auth initialization fallback triggered");
+        setLoading(false);
+      }
+    }, 8000);
 
-    const initialize = async () => {
+    const initAuth = async () => {
       try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
+        // 1. Get initial session
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
         if (mounted.current) {
           setSession(initialSession);
           if (initialSession) {
             await fetchProfile(initialSession);
           }
         }
-      } catch (e) {
-        console.error("Auth init error:", e);
+      } catch (error) {
+        console.error("Auth initialization error:", error);
       } finally {
         if (mounted.current) {
-            setLoading(false);
-            clearTimeout(safetyTimeout);
+          setLoading(false);
         }
       }
     };
 
-    initialize();
+    initAuth();
 
+    // 2. Listen for changes (Login, Logout, Auto-refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-       if (!mounted.current) return;
-       
-       setSession(newSession);
-       
-       if (newSession) {
-         // If we have a new session (login/magic link), fetch profile
-         // We await this to ensure profile is ready if possible, but we don't block `loading` here
-         // because `loading` is mostly for the INITIAL app load.
-         await fetchProfile(newSession);
-       } else {
-         setProfile(null);
-       }
-       
-       // Ensure loading is false (handling cases where auth change happens before init finishes)
-       setLoading(false);
+      if (!mounted.current) return;
+
+      // Update session state
+      setSession(newSession);
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        // If we already have a profile and the user ID hasn't changed, we might not need to refetch?
+        // But to be safe and "lag-free", we can fetch in background if not loading.
+        // If we are loading (initial boot), we wait for it.
+
+        // However, to fix "stuck", let's be explicit:
+        if (newSession) await fetchProfile(newSession);
+      } else if (event === 'SIGNED_OUT') {
+        setProfile(null);
+        setLoading(false); // Immediate release on logout
+      }
+
+      // Note: We don't forcefully set loading=false here for INITIAL_SESSION because `initAuth` handles the primary loading state.
+      // For other events like SIGNED_IN (manual login), we might want to ensure loading is handled if Auth component relies on it.
     });
 
     return () => {
@@ -108,7 +115,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const refreshProfile = useCallback(async () => {
     if (session) {
-        await fetchProfile(session);
+      await fetchProfile(session);
     }
   }, [fetchProfile, session]);
 
