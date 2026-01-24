@@ -14,6 +14,7 @@ const HeroImageSequence: React.FC<HeroImageSequenceProps> = ({
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const imagesRef = useRef<HTMLImageElement[]>([]);
     const [imagesLoaded, setImagesLoaded] = useState(false);
+    const [loadingProgress, setLoadingProgress] = useState(0);
     const frameInterval = duration / totalFrames;
 
     // Preload all images
@@ -29,6 +30,7 @@ const HeroImageSequence: React.FC<HeroImageSequenceProps> = ({
 
                 img.onload = () => {
                     loadedCount++;
+                    setLoadingProgress(loadedCount);
                     if (loadedCount === totalFrames) {
                         setImagesLoaded(true);
                     }
@@ -89,9 +91,22 @@ const HeroImageSequence: React.FC<HeroImageSequenceProps> = ({
         <div className="w-full relative bg-black">
             {!imagesLoaded && (
                 <div className="w-full h-[85vh] flex items-center justify-center">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
-                        <p className="text-zinc-400">Loading experience...</p>
+                    <div className="text-center max-w-md px-4">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-6"></div>
+                        <p className="text-zinc-400 text-lg mb-4">Loading experience...</p>
+
+                        {/* Progress bar */}
+                        <div className="w-full bg-zinc-800 rounded-full h-2 mb-3 overflow-hidden">
+                            <div
+                                className="bg-gradient-to-r from-gold to-yellow-200 h-full transition-all duration-300 ease-out"
+                                style={{ width: `${(loadingProgress / totalFrames) * 100}%` }}
+                            ></div>
+                        </div>
+
+                        {/* Progress counter */}
+                        <p className="text-zinc-500 text-sm">
+                            {loadingProgress} / {totalFrames} frames loaded
+                        </p>
                     </div>
                 </div>
             )}
