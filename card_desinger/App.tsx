@@ -166,7 +166,10 @@ const CardDesignerPage: React.FC = () => {
                 const type = data.card_type === 'standie' ? 'standie' : 'business_card';
                 setCardType(type);
 
-                if (data.design_data) {
+                // Check if design_data has actual content (not just empty object)
+                const hasSavedDesign = data.design_data && (data.design_data.front || data.design_data.back);
+
+                if (hasSavedDesign) {
                     if (data.design_data.front) setFrontData(data.design_data.front);
                     if (data.design_data.back) setBackData(data.design_data.back);
                     if (data.design_data.type) setCardType(data.design_data.type);
