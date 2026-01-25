@@ -33,16 +33,17 @@ export interface GenerationParams {
     logoUrl?: string;
 }
 
-export const generateCardDesign = async (params: GenerationParams): Promise<CardFaceData | null> => {
-    const ai = initGemini();
-    if (!ai) return null;
+export const generateCardDesign = async (params: GenerationParams): Promise<{ data: CardFaceData | null, error?: string }> => {
+    try {
+        const ai = initGemini();
+        if (!ai) return { data: null, error: "Missing API Key" };
 
-    const model = ai.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generationConfig: { responseMimeType: "application/json" }
-    });
+        const model = ai.getGenerativeModel({
+            model: "gemini-1.5-flash",
+            generationConfig: { responseMimeType: "application/json" }
+        });
 
-    const systemPrompt = `
+        const systemPrompt = `
     You are an expert Graphic Designer specializing in high-end, modern business cards.
     Your task is to generate a JSON configuration for a business card design based on the user's description and style preferences.
     
@@ -87,14 +88,25 @@ export const generateCardDesign = async (params: GenerationParams): Promise<Card
     Return ONLY the JSON string, no markdown formatting.
     `;
 
-    try {
         const result = await model.generateContent(systemPrompt);
         const response = await result.response;
-        const text = response.text();
 
-        // Clean markdown if present
+        // Safety check
+        if (!response.candidates || response.candidates.length === 0) {
+            return { data: null, error: "AI Safety Filter Triggered. Try a different description." };
+        }
+
+        const text = response.text();
+        // console.log("Gemini Raw Response:", text);
+
+        // Clean potentially wrapped JSON just in case, though MIME type should fix it
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const data = JSON.parse(jsonStr);
+        let data;
+        try {
+            data = JSON.parse(jsonStr);
+        } catch (e: any) {
+            return { data: null, error: "Invalid JSON from AI: " + e.message };
+        }
 
         // Post-processing to ensure valid URLs/Images
         if (params.logoUrl) {
@@ -130,10 +142,10 @@ export const generateCardDesign = async (params: GenerationParams): Promise<Card
             }
         }
 
-        return data as CardFaceData;
+        return { data: data as CardFaceData };
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Gemini Generation Failed. Full Error:", error);
-        return null;
+        return { data: null, error: error.message || "Unknown Error" };
     }
 };

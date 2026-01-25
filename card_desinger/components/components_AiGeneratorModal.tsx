@@ -83,7 +83,7 @@ const AiGeneratorModal: React.FC<AiGeneratorModalProps> = ({ isOpen, onClose, on
             const companyName = userProfile?.company || "Your Company";
             const personName = userProfile?.full_name || "Your Name";
 
-            const result = await generateCardDesign({
+            const { data, error } = await generateCardDesign({
                 side,
                 style,
                 description,
@@ -93,16 +93,15 @@ const AiGeneratorModal: React.FC<AiGeneratorModalProps> = ({ isOpen, onClose, on
                 logoUrl: uploadedLogoUrl
             });
 
-            if (result) {
-                setGeneratedData(result);
+            if (data) {
+                setGeneratedData(data);
                 setStep('preview');
 
                 // 4. Update Usage Limit
                 const newUsage = { ...usage, [limitKey]: usage[limitKey] + 1 };
                 await supabase.from('profiles').update({ ai_generation_count: newUsage }).eq('id', userProfile.id);
-                // Ideally propagate this up to parent to update local state, but we'll rely on refresh or just block next attempt
             } else {
-                showToast("AI couldn't generate a valid design. Try again.", 'error');
+                showToast(error || "AI could not generate a valid design. Try again.", 'error');
                 setStep('input');
             }
 
