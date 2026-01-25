@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useProfile } from '../context/ProfileContext';
-import HeroImageSequence from './HeroImageSequence';
+import HeroVideo from './HeroVideo';
 
 const Home: React.FC = () => {
   const { session, loading } = useProfile();
@@ -45,8 +45,8 @@ const Home: React.FC = () => {
     <div className="bg-black text-gray-100 font-poppins overflow-hidden">
 
 
-      {/* 1. Hero Image Sequence Section */}
-      <HeroImageSequence totalFrames={192} duration={8000} />
+      {/* 1. Hero Video Section */}
+      <HeroVideo />
 
 
       {/* Content Section (Below Image) */}
