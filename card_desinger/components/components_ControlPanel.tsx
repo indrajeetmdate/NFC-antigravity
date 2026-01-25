@@ -18,6 +18,7 @@ interface ControlPanelProps {
     cardType: 'business_card' | 'standie';
     setCardType: (type: 'business_card' | 'standie') => void;
     onReset: () => void;
+    onAiGenerate: () => void;
 }
 
 const uuid = () => Math.random().toString(36).substring(2, 9);
@@ -66,7 +67,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     saveStatus,
     cardType,
     setCardType,
-    onReset
+    onReset,
+    onAiGenerate
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [mode, setMode] = useState<Mode>('MAIN');
@@ -387,6 +389,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {/* AI Generate Button (New) */}
+                    <button
+                        onClick={onAiGenerate}
+                        className="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gradient-to-r from-blue-600 via-purple-600 to-gold text-white text-[10px] font-bold shadow-lg shadow-purple-900/30 hover:shadow-purple-900/50 hover:scale-105 transition-all mr-2"
+                        title="Generate Custom Design with AI"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 6 6.5 9.5 3 12l3.5 2.5L9 18l2.5-3.5L15 12l-3.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z" />
+                        </svg>
+                        <span className="hidden sm:inline">AI Magic</span>
+                    </button>
+
                     {/* View Toggles */}
                     <div className="flex bg-zinc-800 rounded-lg p-0.5">
                         <button onClick={() => setActiveSide('front')} className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${activeSide === 'front' ? 'bg-zinc-600 text-white' : 'text-zinc-500'}`}>Front</button>

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import BusinessCard from './components/components_BusinessCard';
 import ControlPanel from './components/components_ControlPanel';
+import AiGeneratorModal from './components/components_AiGeneratorModal';
 import type { CardFaceData, ImageElement, TextElement } from '../types';
 import { supabase } from '../lib/supabase';
 import { BUCKET_CARD_IMAGES } from '../constants';
@@ -84,6 +85,10 @@ const getClientCoords = (e: MouseEvent | TouchEvent | React.MouseEvent | React.T
 const CardDesignerPage: React.FC = () => {
     const [frontData, setFrontData] = useState<CardFaceData>(initialFrontData);
     const [backData, setBackData] = useState<CardFaceData>(initialBackData);
+
+    // AI Modal State
+    const [aiModalOpen, setAiModalOpen] = useState(false);
+
     const [activeSide, setActiveSide] = useState<'front' | 'back'>('front');
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<string>(''); // For detailed feedback
@@ -473,27 +478,46 @@ const CardDesignerPage: React.FC = () => {
 
             if (!currentFolder) throw new Error("Storage folder path is missing.");
 
-            // Updates
-            const updates: any = {
+            // 1. SAVE JSON DATA IMMEDIATELY (Fast)
+            const jsonUpdates = {
                 card_type: cardType,
                 design_data: { front: frontData, back: backData, type: cardType },
                 updated_at: new Date().toISOString()
             };
 
+            // Fire and forget JSON update for speed (or await if critical, but we want speed)
+            await supabase.from('profiles').update(jsonUpdates).eq('id', currentProfileId);
+
+            // 2. GENERATE AND UPLOAD IMAGES IN PARALLEL (Background - Slower)
+            const uploadPromises: Promise<any>[] = [];
+            const imageUpdates: any = {};
+
+            // Only generate images if needed
             if (!sideToSave || sideToSave === 'front') {
-                setSaveStatus(sideToSave ? 'Generating Front...' : 'Generating Images...');
-                const frontUrl = await captureAndUploadImage('front', frontData, currentFolder);
-                updates.front_side = frontUrl;
+                uploadPromises.push((async () => {
+                    setSaveStatus(sideToSave ? 'Saving Front...' : 'Processing Front...');
+                    const frontUrl = await captureAndUploadImage('front', frontData, currentFolder);
+                    imageUpdates.front_side = frontUrl;
+                })());
             }
 
             if (!sideToSave || sideToSave === 'back') {
-                setSaveStatus(sideToSave ? 'Generating Back...' : 'Generating Images...');
-                const backUrl = await captureAndUploadImage('back', backData, currentFolder);
-                updates.back_side = backUrl;
+                uploadPromises.push((async () => {
+                    setSaveStatus(sideToSave ? 'Saving Back...' : 'Processing Back...');
+                    const backUrl = await captureAndUploadImage('back', backData, currentFolder);
+                    imageUpdates.back_side = backUrl;
+                })());
             }
 
-            setSaveStatus('Saving Profile...');
-            await supabase.from('profiles').update(updates).eq('id', currentProfileId);
+            if (uploadPromises.length > 0) {
+                setSaveStatus('Finalizing Images...');
+                await Promise.all(uploadPromises);
+
+                // 3. UPDATE PROFILE WITH IMAGE URLs
+                if (Object.keys(imageUpdates).length > 0) {
+                    await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
+                }
+            }
 
             clearTimeout(safetyTimeout);
             if (mountedRef.current) {
@@ -543,8 +567,30 @@ const CardDesignerPage: React.FC = () => {
                     cardType={cardType}
                     setCardType={setCardType}
                     onReset={handleReset}
+                    onAiGenerate={() => setAiModalOpen(true)}
                 />
             </div>
+
+            {/* AI Generator Modal */}
+            <AiGeneratorModal
+                isOpen={aiModalOpen}
+                onClose={() => setAiModalOpen(false)}
+                onApply={(data, side) => {
+                    const setData = side === 'front' ? setFrontData : setBackData;
+                    setData(prev => ({
+                        ...prev,
+                        ...data,
+                        images: [
+                            // Preserve QR code if exists in current design but not in AI design (though AI design should have it)
+                            ...(prev.images.filter(img => img.id === 'qr' && !data.images.some(d => d.id === 'qr'))),
+                            ...data.images
+                        ]
+                    }));
+                    showToast(`AI Design applied to ${side} side!`, 'success');
+                }}
+                userProfile={userProfile}
+                side={activeSide}
+            />
 
             <div className="flex-1 overflow-y-auto overflow-x-hidden relative flex flex-col items-center justify-start p-1 md:p-4 bg-zinc-900/50 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" onMouseDown={handleDeselect} onTouchStart={handleDeselect}>
                 <div className="absolute top-2 left-2 right-2 z-20 flex justify-between items-start pointer-events-none">

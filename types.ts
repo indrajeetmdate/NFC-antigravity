@@ -72,6 +72,7 @@ export interface Profile {
   front_side?: string | null;
   back_side?: string | null;
   design_data?: any; // New: Stores the raw JSON of the card design (frontData/backData)
+  ai_generation_count?: { front: number; back: number }; // New: Track AI usage
   created_at: string;
   updated_at: string;
 }
