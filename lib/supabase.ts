@@ -7,11 +7,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     schema: 'public',
   },
   auth: {
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce',
   },
 });
 
