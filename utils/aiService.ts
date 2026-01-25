@@ -37,7 +37,10 @@ export const generateCardDesign = async (params: GenerationParams): Promise<Card
     const ai = initGemini();
     if (!ai) return null;
 
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = ai.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: { responseMimeType: "application/json" }
+    });
 
     const systemPrompt = `
     You are an expert Graphic Designer specializing in high-end, modern business cards.
@@ -130,7 +133,7 @@ export const generateCardDesign = async (params: GenerationParams): Promise<Card
         return data as CardFaceData;
 
     } catch (error) {
-        console.error("Gemini Generation Failed:", error);
+        console.error("Gemini Generation Failed. Full Error:", error);
         return null;
     }
 };
