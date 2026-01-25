@@ -24,6 +24,7 @@ const COLORS = [
 ];
 
 const AiGeneratorModal: React.FC<AiGeneratorModalProps> = ({ isOpen, onClose, onApply, userProfile, side }) => {
+    // Beta Feature Disclaimer included in UI via render
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<'input' | 'generating' | 'preview'>('input');
 
@@ -56,10 +57,7 @@ const AiGeneratorModal: React.FC<AiGeneratorModalProps> = ({ isOpen, onClose, on
         const limitKey = side === 'front' ? 'front' : 'back';
         const usage = userProfile.ai_generation_count || { front: 0, back: 0 };
 
-        if (usage[limitKey] >= 1) {
-            showToast(`You have reached the limit for ${side} side AI generation (1/1).`, 'error');
-            return;
-        }
+
 
         setLoading(true);
         setStep('generating');
@@ -96,10 +94,7 @@ const AiGeneratorModal: React.FC<AiGeneratorModalProps> = ({ isOpen, onClose, on
             if (data) {
                 setGeneratedData(data);
                 setStep('preview');
-
-                // 4. Update Usage Limit
-                const newUsage = { ...usage, [limitKey]: usage[limitKey] + 1 };
-                await supabase.from('profiles').update({ ai_generation_count: newUsage }).eq('id', userProfile.id);
+                // Usage limit removed: Unlimited generations allowed
             } else {
                 showToast(error || "AI could not generate a valid design. Try again.", 'error');
                 setStep('input');

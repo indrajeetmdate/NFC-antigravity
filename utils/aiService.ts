@@ -14,8 +14,10 @@ export interface GenerationParams {
 
 export const generateCardDesign = async (params: GenerationParams): Promise<{ data: CardFaceData | null, error?: string }> => {
     try {
-        // 1. Construct Prompt for Pollinations
-        const prompt = `business card background, ${params.style} style, ${params.description}, professional, high quality, 8k render, abstract, minimal text space, ${params.colors.join(' ')} color palette`;
+        // 1. Construct Quality Prompt for Pollinations
+        // Emphasize abstract, texture, and no text to ensure good backgrounds
+        const qualityKeywords = "luxury business card background, high quality, 8k render, photorealistic, elegant texture, abstract geometric patterns, no text, clean composition";
+        const prompt = `${qualityKeywords}, ${params.style} style, ${params.description}, ${params.colors.join(' ')} color palette`;
         const encodedPrompt = encodeURIComponent(prompt);
 
         // Use a random seed to ensure variety on re-generation with same params
@@ -25,49 +27,18 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
         // Standard business card ratio is 1.75 (e.g. 1050x600)
         const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1050&height=600&seed=${seed}&nologo=true`;
 
-        // 3. Construct Standard Text Layout (Since we don't have AI layout generation anymore)
+        // 3. Construct Standard Text Layout (Updated per User Request)
         const texts: TextElement[] = [];
 
-        // Standard Layout Logic
         const isDark = params.style.toLowerCase().includes('dark') || params.style.toLowerCase().includes('luxury') || params.style.toLowerCase().includes('cyberpunk');
         const textColor = isDark ? '#FFFFFF' : '#000000';
 
         if (params.side === 'front') {
-            // Company Name (Top Left or Center)
-            texts.push({
-                id: 'company',
-                content: params.companyName || 'Company Name',
-                x: 50, y: 35,
-                scale: 1,
-                color: textColor,
-                fontWeight: '700',
-                fontFamily: 'Montserrat',
-                isLocked: false,
-                fontSize: 28,
-                letterSpacing: 0,
-                textAlign: 'center'
-            });
-
-            // Person Name (Bottom Center)
+            // Person Name (Top Right)
             texts.push({
                 id: 'person',
                 content: params.personName || 'Your Name',
-                x: 50, y: 65,
-                scale: 1,
-                color: textColor,
-                fontWeight: '500',
-                fontFamily: 'Poppins',
-                isLocked: false,
-                fontSize: 18,
-                letterSpacing: 0,
-                textAlign: 'center'
-            });
-        } else {
-            // Back Side - Contact Info
-            texts.push({
-                id: 'title',
-                content: params.personName || 'Your Name',
-                x: 10, y: 20,
+                x: 90, y: 15,
                 scale: 1,
                 color: textColor,
                 fontWeight: '700',
@@ -75,44 +46,69 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
                 isLocked: false,
                 fontSize: 22,
                 letterSpacing: 0,
-                textAlign: 'left'
+                textAlign: 'right'
             });
 
+            // Company Name (Below Person Name or separate - defaulting to below for clean top-right block)
+            texts.push({
+                id: 'company',
+                content: params.companyName || 'Company Name',
+                x: 90, y: 25,
+                scale: 1,
+                color: textColor,
+                fontWeight: '500',
+                fontFamily: 'Poppins',
+                isLocked: false,
+                fontSize: 14,
+                letterSpacing: 0,
+                textAlign: 'right'
+            });
+
+        } else {
+            // Back Side - Contact Info (Keep readable)
             texts.push({
                 id: 'contact',
                 content: "+1 234 567 8900\nemail@example.com\nwww.website.com",
-                x: 10, y: 50,
+                x: 50, y: 50,
                 scale: 1,
                 color: textColor,
                 fontWeight: '400',
                 fontFamily: 'Poppins',
                 isLocked: false,
-                fontSize: 12,
+                fontSize: 14,
                 letterSpacing: 0,
-                textAlign: 'left'
+                textAlign: 'center'
             });
         }
 
-        // 4. Construct Images (Logo / QR)
+        // 4. Construct Images (Logo Center, QR Bottom Left)
         const images: ImageElement[] = [];
 
+        // Logo - Center
         if (params.logoUrl) {
             images.push({
                 id: "logo",
                 url: params.logoUrl,
-                x: params.side === 'front' ? 50 : 85,
-                y: params.side === 'front' ? 20 : 20,
-                scale: 0.8,
+                x: 50, // Center X
+                y: 50, // Center Y
+                scale: 1.0,
                 width: 100, height: 100
             });
         }
 
+        // QR Code - Bottom Left (Both sides if needed, usually back, but user requested fixed pos)
+        const qrUrl = 'https://cdn-icons-png.flaticon.com/512/714/714390.png';
+        const addQr = params.side === 'back'; // Or if user wants it on front. Defaulting to back for standard workflow, or we can add to front if requested.
+        // User "add QR code with fixed position at the bottom left". 
+        // We'll add it if it's the back side OR if we assume they want it on the generated side. 
+        // Usually front is logo/name, back is details/QR. Let's stick to Back for QR by default to not clutter front, unless explicitly asked.
+
         if (params.side === 'back') {
             images.push({
                 id: 'qr',
-                url: 'https://cdn-icons-png.flaticon.com/512/714/714390.png',
-                x: 85,
-                y: 50,
+                url: qrUrl,
+                x: 10, // Left
+                y: 85, // Bottom
                 scale: 0.6,
                 width: 100, height: 100
             });
