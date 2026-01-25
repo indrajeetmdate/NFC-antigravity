@@ -37,7 +37,7 @@ const Dashboard: React.FC = () => {
             Retry
           </button>
           <button
-            onClick={() => { signOut(); navigate('/login'); }}
+            onClick={() => { signOut(); navigate('/'); }}
             className="w-full sm:w-auto bg-zinc-800 text-white px-8 py-2.5 rounded-full font-bold hover:bg-zinc-700 transition-colors border border-zinc-700"
           >
             Sign Out
@@ -88,7 +88,7 @@ const Dashboard: React.FC = () => {
             </button>
             <span className="text-zinc-700">|</span>
             <button
-              onClick={() => { signOut(); navigate('/login'); }}
+              onClick={() => { signOut(); navigate('/'); }}
               className="text-sm text-zinc-500 hover:text-white underline decoration-zinc-700 underline-offset-4 transition-colors"
             >
               Not you? Sign Out
