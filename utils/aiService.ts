@@ -39,7 +39,7 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
         if (!ai) return { data: null, error: "Missing API Key" };
 
         const model = ai.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-1.5-flash-001",
             generationConfig: { responseMimeType: "application/json" }
         });
 
