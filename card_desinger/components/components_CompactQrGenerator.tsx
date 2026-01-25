@@ -25,7 +25,7 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
     const [profile, setProfile] = useState<{ id: string; full_name: string; profile_slug: string } | null>(null);
     const [url, setUrl] = useState<string>('');
     const [displayContent, setDisplayContent] = useState<string>('');
-    const [image, setImage] = useState<string | null>(null); 
+    const [image, setImage] = useState<string | null>(null);
     const [logoSize, setLogoSize] = useState(0.25);
     const [options, setOptions] = useState<Options>({
         width: 300,
@@ -34,7 +34,7 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
         margin: 10,
         image: '',
         dotsOptions: { color: '#d7ba52', type: 'rounded' },
-        backgroundOptions: { color: '#000000' },
+        backgroundOptions: { color: 'transparent' },
         cornersSquareOptions: { type: 'extra-rounded', color: '#d7ba52' },
         cornersDotOptions: { type: 'dots', color: '#d7ba52' },
         imageOptions: { imageSize: 0.25, margin: 0, hideBackgroundDots: true }
@@ -63,7 +63,7 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
         if (!qrCodeInstanceRef.current) {
             qrCodeInstanceRef.current = new QRCodeStyling({ ...options, data: url, image: image ?? '' });
         }
-        qrCodeInstanceRef.current.update({ ...options, data: url, image: image ?? '', imageOptions: {...options.imageOptions, imageSize: logoSize} });
+        qrCodeInstanceRef.current.update({ ...options, data: url, image: image ?? '', imageOptions: { ...options.imageOptions, imageSize: logoSize } });
     }, [url, image, options, logoSize]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,7 +83,7 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
                 reader.onloadend = () => onUpdate(reader.result as string);
                 reader.readAsDataURL(blob);
             }
-        } catch(e) {
+        } catch (e) {
             console.error(e);
         }
     };
@@ -107,11 +107,11 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="text-xs text-zinc-400 block mb-1">Dots Color</label>
-                    <input type="color" value={options.dotsOptions.color} onChange={e => setOptions({...options, dotsOptions: {...options.dotsOptions, color: e.target.value}, cornersSquareOptions: {...options.cornersSquareOptions, color: e.target.value}, cornersDotOptions: {...options.cornersDotOptions, color: e.target.value}})} className="w-full h-8 bg-zinc-800 rounded cursor-pointer" />
+                    <input type="color" value={options.dotsOptions.color} onChange={e => setOptions({ ...options, dotsOptions: { ...options.dotsOptions, color: e.target.value }, cornersSquareOptions: { ...options.cornersSquareOptions, color: e.target.value }, cornersDotOptions: { ...options.cornersDotOptions, color: e.target.value } })} className="w-full h-8 bg-zinc-800 rounded cursor-pointer" />
                 </div>
                 <div>
                     <label className="text-xs text-zinc-400 block mb-1">Background</label>
-                    <input type="color" value={options.backgroundOptions.color} onChange={e => setOptions({...options, backgroundOptions: {...options.backgroundOptions, color: e.target.value}})} className="w-full h-8 bg-zinc-800 rounded cursor-pointer" />
+                    <input type="color" value={options.backgroundOptions.color} onChange={e => setOptions({ ...options, backgroundOptions: { ...options.backgroundOptions, color: e.target.value } })} className="w-full h-8 bg-zinc-800 rounded cursor-pointer" />
                 </div>
             </div>
 
@@ -127,26 +127,26 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
                     <input type="file" accept="image/*" onChange={handleFileChange} className="text-xs text-zinc-500 w-full" />
                 </div>
                 <div className="flex-1">
-                     <label className="text-xs text-zinc-400 block mb-1">Logo Size</label>
-                     <input type="range" min="0.1" max="0.6" step="0.05" value={logoSize} onChange={(e) => setLogoSize(parseFloat(e.target.value))} className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-gold" />
+                    <label className="text-xs text-zinc-400 block mb-1">Logo Size</label>
+                    <input type="range" min="0.1" max="0.6" step="0.05" value={logoSize} onChange={(e) => setLogoSize(parseFloat(e.target.value))} className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-gold" />
                 </div>
             </div>
 
             <div className="w-full">
                 <label className="text-xs text-zinc-400 block mb-1">Content</label>
-                <input 
-                    type="text" 
+                <input
+                    type="text"
                     value={displayContent}
                     onChange={(e) => {
                         setDisplayContent(e.target.value);
                         setUrl(e.target.value); // Editing overwrites the data with raw text
                     }}
                     onBlur={() => {
-                        if(profile && url === `https://www.canopycorp.in/#/p/${profile.profile_slug}`) {
+                        if (profile && url === `https://www.canopycorp.in/#/p/${profile.profile_slug}`) {
                             setDisplayContent(`${profile.full_name}'s Profile`);
                         }
                     }}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm text-white focus:border-gold outline-none" 
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm text-white focus:border-gold outline-none"
                 />
             </div>
 

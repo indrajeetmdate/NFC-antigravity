@@ -7,6 +7,8 @@ import { BUCKET_BACKGROUND_PHOTOS, BUCKET_PROFILE_PHOTOS, BUCKET_CARD_IMAGES, FO
 import { useToast } from '../context/ToastContext';
 import { useProfile } from '../context/ProfileContext';
 import PublicProfile from './PublicProfile';
+import PreviewModeToggle from './PreviewModeToggle';
+import { getPreferredPreviewMode, setPreferredPreviewMode } from '../utils/deviceDetection';
 
 // Helper to generate IDs
 const uuid = () => Math.random().toString(36).substring(2, 9);
@@ -93,11 +95,18 @@ const ProfileEditor: React.FC = () => {
     const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
     const [bgPhoto, setBgPhoto] = useState<File | null>(null);
     const [backgroundTemplates, setBackgroundTemplates] = useState<{ name: string; url: string; }[]>([]);
+    const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>(getPreferredPreviewMode());
 
     const debounceTimeout = useRef<number | null>(null);
     const isSavingRef = useRef(false);
     const hasMounted = useRef(false);
     const mountedRef = useRef(true);
+
+    // Handle preview mode changes
+    const handlePreviewModeChange = (mode: 'mobile' | 'desktop') => {
+        setPreviewMode(mode);
+        setPreferredPreviewMode(mode);
+    };
 
     useEffect(() => {
         mountedRef.current = true;
@@ -426,8 +435,14 @@ const ProfileEditor: React.FC = () => {
                 <div className="flex justify-between items-center px-4 py-2 border-b border-zinc-800 bg-zinc-900">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-white">Edit Profile</span>
+                        <span className="hidden sm:inline text-xs text-zinc-500">Preview: Links are fully interactive - click to test!</span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                        <PreviewModeToggle
+                            mode={previewMode}
+                            onChange={handlePreviewModeChange}
+                            className=""
+                        />
                         <button
                             onClick={() => handleSubmit(false)}
                             disabled={loading}
@@ -709,7 +724,15 @@ const ProfileEditor: React.FC = () => {
                     </div>
                 </div>
             </div>
-            <div className="flex-1 relative overflow-hidden bg-zinc-950/50 flex flex-col" onClick={() => setActiveTab(null)}><div className="flex-1 overflow-y-auto scrollbar-hide pb-32 md:pb-0"><div className="min-h-full pointer-events-none select-none py-8 flex justify-center"><div className="w-full"><PublicProfile profileData={formData} /></div></div></div></div>
+            <div className="flex-1 relative overflow-hidden bg-zinc-950/50 flex flex-col" onClick={() => setActiveTab(null)}>
+                <div className="flex-1 overflow-y-auto scrollbar-hide pb-32 md:pb-0">
+                    <div className="min-h-full pointer-events-none select-none py-8 flex justify-center">
+                        <div className={`transition-all duration-300 ${previewMode === 'mobile' ? 'w-full max-w-md' : 'w-full'}`}>
+                            <PublicProfile profileData={formData} />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

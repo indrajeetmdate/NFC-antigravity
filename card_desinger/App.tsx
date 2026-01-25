@@ -122,7 +122,7 @@ const CardDesignerPage: React.FC = () => {
             const qr = new QRCodeStyling({
                 width: 300, height: 300, data: profileUrl,
                 dotsOptions: { color: '#d7ba52', type: 'rounded' },
-                backgroundOptions: { color: '#000000' },
+                backgroundOptions: { color: 'transparent' },
                 cornersSquareOptions: { type: 'extra-rounded', color: '#d7ba52' },
                 cornersDotOptions: { type: 'dots', color: '#d7ba52' }
             });
