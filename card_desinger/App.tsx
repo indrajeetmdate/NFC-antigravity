@@ -170,6 +170,28 @@ const CardDesignerPage: React.FC = () => {
                     if (data.design_data.front) setFrontData(data.design_data.front);
                     if (data.design_data.back) setBackData(data.design_data.back);
                     if (data.design_data.type) setCardType(data.design_data.type);
+
+                    // Check if QR code exists in saved design, if not, generate it
+                    const frontQrImage = data.design_data.front?.images?.find((img: any) => img.id === 'qr');
+                    if (!frontQrImage?.url) {
+                        // QR missing, generate default QR
+                        const qrUrl = localStorage.getItem('customQrCodeUrl');
+                        if (qrUrl) {
+                            setFrontData(prev => ({
+                                ...prev,
+                                images: prev.images.map(img => img.id === 'qr' ? { ...img, url: qrUrl } : img)
+                            }));
+                        } else if (data.profile_slug) {
+                            generateDefaultQr(data.profile_slug).then(defaultQrUrl => {
+                                if (mountedRef.current && defaultQrUrl) {
+                                    setFrontData(prev => ({
+                                        ...prev,
+                                        images: prev.images.map(img => img.id === 'qr' ? { ...img, url: defaultQrUrl } : img)
+                                    }));
+                                }
+                            });
+                        }
+                    }
                 } else {
                     // INITIALIZE DEFAULT IF NO SAVED DESIGN
                     if (type === 'standie') {
