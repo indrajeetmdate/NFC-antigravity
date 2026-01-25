@@ -67,21 +67,18 @@ const AiGeneratorModal: React.FC<AiGeneratorModalProps> = ({ isOpen, onClose, on
             let uploadedLogoUrl = undefined;
             if (logoFile && userProfile?.id) {
                 const filePath = `temp_ai/${userProfile.id}/${Math.random().toString(36).substring(7)}.png`;
-                const { data, error } = await supabase.storage.from(BUCKET_CARD_IMAGES).upload(filePath, logoFile);
-                if (!error) {
+                const { data: uploadData, error: uploadError } = await supabase.storage.from(BUCKET_CARD_IMAGES).upload(filePath, logoFile);
+                if (!uploadError) {
                     const { data: { publicUrl } } = supabase.storage.from(BUCKET_CARD_IMAGES).getPublicUrl(filePath);
                     uploadedLogoUrl = publicUrl;
                 }
-            } else if (userProfile?.profile_photo_url) {
-                // Use profile photo as fallback logo if available
-                uploadedLogoUrl = userProfile.profile_photo_url;
             }
 
             // 3. Call AI Service
             const companyName = userProfile?.company || "Your Company";
             const personName = userProfile?.full_name || "Your Name";
 
-            const { data, error } = await generateCardDesign({
+            const { data: aiData, error: aiError } = await generateCardDesign({
                 side,
                 style,
                 description,
@@ -91,12 +88,12 @@ const AiGeneratorModal: React.FC<AiGeneratorModalProps> = ({ isOpen, onClose, on
                 logoUrl: uploadedLogoUrl
             });
 
-            if (data) {
-                setGeneratedData(data);
+            if (aiData) {
+                setGeneratedData(aiData);
                 setStep('preview');
                 // Usage limit removed: Unlimited generations allowed
             } else {
-                showToast(error || "AI could not generate a valid design. Try again.", 'error');
+                showToast(aiError || "AI could not generate a valid design. Try again.", 'error');
                 setStep('input');
             }
 

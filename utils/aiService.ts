@@ -16,7 +16,7 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
     try {
         // 1. Construct Quality Prompt for Pollinations
         // Emphasize abstract, texture, and no text to ensure good backgrounds
-        const qualityKeywords = "luxury business card background, high quality, 8k render, photorealistic, elegant texture, abstract geometric patterns, no text, clean composition";
+        const qualityKeywords = "abstract background texture, no text, no writing, no letters, geometric shapes, fluid art, luxury patterns, 8k resolution, minimalist wallpaper design";
         const prompt = `${qualityKeywords}, ${params.style} style, ${params.description}, ${params.colors.join(' ')} color palette`;
         const encodedPrompt = encodeURIComponent(prompt);
 
@@ -27,41 +27,41 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
         // Standard business card ratio is 1.75 (e.g. 1050x600)
         const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1050&height=600&seed=${seed}&nologo=true`;
 
-        // 3. Construct Standard Text Layout (Updated per User Request)
+        // 3. Construct Standard Text Layout (Updated per User Request: Top Left)
         const texts: TextElement[] = [];
 
         const isDark = params.style.toLowerCase().includes('dark') || params.style.toLowerCase().includes('luxury') || params.style.toLowerCase().includes('cyberpunk');
         const textColor = isDark ? '#FFFFFF' : '#000000';
 
         if (params.side === 'front') {
-            // Person Name (Top Right)
+            // Person Name (Top Left)
             texts.push({
                 id: 'person',
                 content: params.personName || 'Your Name',
-                x: 90, y: 15,
+                x: 10, y: 15,
                 scale: 1,
                 color: textColor,
                 fontWeight: '700',
                 fontFamily: 'Montserrat',
                 isLocked: false,
-                fontSize: 22,
+                fontSize: 24,
                 letterSpacing: 0,
-                textAlign: 'right'
+                textAlign: 'left'
             });
 
-            // Company Name (Below Person Name or separate - defaulting to below for clean top-right block)
+            // Company Name (Below Person Name)
             texts.push({
                 id: 'company',
                 content: params.companyName || 'Company Name',
-                x: 90, y: 25,
+                x: 10, y: 28,
                 scale: 1,
                 color: textColor,
                 fontWeight: '500',
                 fontFamily: 'Poppins',
                 isLocked: false,
-                fontSize: 14,
+                fontSize: 16,
                 letterSpacing: 0,
-                textAlign: 'right'
+                textAlign: 'left'
             });
 
         } else {
