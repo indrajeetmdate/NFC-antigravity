@@ -4,7 +4,7 @@ import { CardFaceData, TextElement, ImageElement } from "../types";
 
 // Helper to get API key safely
 const getApiKey = () => {
-    const key = import.meta.env.VITE_GEMINI_API_KEY;
+    const key = (import.meta as any).env.VITE_GEMINI_API_KEY;
     if (!key) {
         console.warn("VITE_GEMINI_API_KEY is missing!");
         return "";
