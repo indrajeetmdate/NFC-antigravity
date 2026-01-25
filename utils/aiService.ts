@@ -65,20 +65,7 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
             });
 
         } else {
-            // Back Side - Contact Info (Keep readable)
-            texts.push({
-                id: 'contact',
-                content: "+1 234 567 8900\nemail@example.com\nwww.website.com",
-                x: 50, y: 50,
-                scale: 1,
-                color: textColor,
-                fontWeight: '400',
-                fontFamily: 'Poppins',
-                isLocked: false,
-                fontSize: 14,
-                letterSpacing: 0,
-                textAlign: 'center'
-            });
+            // Back Side - No text additions (as per user request)
         }
 
         // 4. Construct Images (Logo Center, QR Bottom Left)
@@ -96,14 +83,16 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
             });
         }
 
-        // QR Code - Bottom Left (Both sides if needed, usually back, but user requested fixed pos)
-        const qrUrl = 'https://cdn-icons-png.flaticon.com/512/714/714390.png';
-        const addQr = params.side === 'back'; // Or if user wants it on front. Defaulting to back for standard workflow, or we can add to front if requested.
-        // User "add QR code with fixed position at the bottom left". 
-        // We'll add it if it's the back side OR if we assume they want it on the generated side. 
-        // Usually front is logo/name, back is details/QR. Let's stick to Back for QR by default to not clutter front, unless explicitly asked.
-
+        // QR Code - Bottom Left (Back side only)
         if (params.side === 'back') {
+            // Get preset color or fallback to black/white contrast
+            let qrColorHex = params.colors[0] || (isDark ? 'ffffff' : '000000');
+            // Remove hash if present
+            qrColorHex = qrColorHex.replace('#', '');
+
+            // Generate transparent QR with matching color using QuickChart
+            const qrUrl = `https://quickchart.io/qr?text=https://example.com&size=300&dark=${qrColorHex}&light=00000000&margin=0`;
+
             images.push({
                 id: 'qr',
                 url: qrUrl,
