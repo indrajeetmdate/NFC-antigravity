@@ -8,7 +8,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
   auth: {
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    storageKey: 'canopy-auth-token',
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
