@@ -36,7 +36,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleLogout = async () => {
     await signOut();
-    navigate('/login');
+    navigate('/');
   };
 
   const pathPrefix = location.pathname.startsWith('/profile') ? '/profile' : location.pathname;

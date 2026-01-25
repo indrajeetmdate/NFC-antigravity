@@ -8,6 +8,8 @@ import type { CardFaceData, ImageElement, TextElement } from '../types';
 import { supabase } from '../lib/supabase';
 import { BUCKET_CARD_IMAGES } from '../constants';
 import { useToast } from '../context/ToastContext';
+import PreviewModeToggle from '../components/PreviewModeToggle';
+import { getPreferredPreviewMode, setPreferredPreviewMode } from '../utils/deviceDetection';
 
 declare const QRCodeStyling: any;
 
@@ -99,6 +101,12 @@ const CardDesignerPage: React.FC = () => {
     const [profileId, setProfileId] = useState<string | null>(null);
     const [userProfile, setUserProfile] = useState<any>(null);
     const [storagePath, setStoragePath] = useState<string | null>(null);
+    const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>(getPreferredPreviewMode());
+
+    const handlePreviewModeChange = (mode: 'mobile' | 'desktop') => {
+        setPreviewMode(mode);
+        setPreferredPreviewMode(mode);
+    };
 
     const uploadDesignRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
@@ -490,8 +498,8 @@ const CardDesignerPage: React.FC = () => {
     };
 
     const containerClasses = cardType === 'standie'
-        ? 'w-[80%] md:w-auto h-auto md:h-[85vh] aspect-[2/3] shadow-2xl transition-all duration-300'
-        : 'w-[90%] md:w-[45%] aspect-[1.75/1] shadow-2xl transition-all duration-300';
+        ? `${previewMode === 'mobile' ? 'w-[95%] max-w-[320px]' : 'w-[80%] md:w-auto'} h-auto md:h-[85vh] aspect-[2/3] shadow-2xl transition-all duration-300`
+        : `${previewMode === 'mobile' ? 'w-[95%] max-w-[400px]' : 'w-[90%] md:w-[45%]'} aspect-[1.75/1] shadow-2xl transition-all duration-300`;
 
     return (
         <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-80px)] bg-zinc-950 text-white flex flex-col overflow-hidden">
@@ -520,6 +528,11 @@ const CardDesignerPage: React.FC = () => {
                         <p className="text-xs text-zinc-400">Step 1: Design your card</p>
                     </div>
                     <div className="pointer-events-auto flex flex-col items-end gap-1">
+                        <PreviewModeToggle
+                            mode={previewMode}
+                            onChange={handlePreviewModeChange}
+                            className="mb-1"
+                        />
                         <span className="text-[10px] text-zinc-300 font-medium bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm animate-pulse">Autosave enabled (5s)</span>
                         <input type="file" accept="image/*" className="hidden" ref={uploadDesignRef} onChange={(e) => {
                             if (e.target.files?.[0]) {
