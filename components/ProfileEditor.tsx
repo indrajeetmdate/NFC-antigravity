@@ -726,7 +726,7 @@ const ProfileEditor: React.FC = () => {
             </div>
             <div className="flex-1 relative overflow-hidden bg-zinc-950/50 flex flex-col" onClick={() => setActiveTab(null)}>
                 <div className="flex-1 overflow-y-auto scrollbar-hide pb-32 md:pb-0">
-                    <div className="min-h-full pointer-events-none select-none py-8 flex justify-center">
+                    <div className="min-h-full py-8 flex justify-center">
                         <div className={`transition-all duration-300 ${previewMode === 'mobile' ? 'w-full max-w-md' : 'w-full'}`}>
                             <PublicProfile profileData={formData} />
                         </div>
