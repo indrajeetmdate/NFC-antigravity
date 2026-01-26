@@ -412,7 +412,7 @@ const CardDesignerPage: React.FC = () => {
         const dataUrl = await Promise.race([
             htmlToImage.toPng(element, {
                 fontEmbedCss: fontsEmbedCss,
-                pixelRatio: 2,
+                pixelRatio: 1.5, // Reduced from 2 for faster generation
                 cacheBust: false,
                 width: CARD_WIDTH,
                 height: CARD_HEIGHT,
@@ -437,15 +437,7 @@ const CardDesignerPage: React.FC = () => {
         if (isSaving) return;
 
         setIsSaving(true);
-        setSaveStatus(sideToSave ? `Saving ${sideToSave} side...` : 'Preparing...');
-
-        const safetyTimeout = setTimeout(() => {
-            if (mountedRef.current) {
-                setIsSaving(false);
-                setSaveStatus('');
-                showToast("Save took too long. Check connection.", 'info');
-            }
-        }, 25000);
+        setSaveStatus('Saving design...');
 
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -478,66 +470,61 @@ const CardDesignerPage: React.FC = () => {
 
             if (!currentFolder) throw new Error("Storage folder path is missing.");
 
-            // 1. SAVE JSON DATA IMMEDIATELY (Fast)
+            // ===== PHASE 1: INSTANT JSON SAVE (FAST) =====
             const jsonUpdates = {
                 card_type: cardType,
                 design_data: { front: frontData, back: backData, type: cardType },
                 updated_at: new Date().toISOString()
             };
 
-            // Fire and forget JSON update for speed (or await if critical, but we want speed)
             await supabase.from('profiles').update(jsonUpdates).eq('id', currentProfileId);
 
-            // 2. GENERATE AND UPLOAD IMAGES SEQUENTIALLY (To avoid freezing)
-            const imageUpdates: any = {};
-
-            // Only generate images if needed
-            if (!sideToSave || sideToSave === 'front') {
-                setSaveStatus(sideToSave ? 'Saving Front...' : 'Processing Front...');
-                try {
-                    const frontUrl = await captureAndUploadImage('front', frontData, currentFolder);
-                    imageUpdates.front_side = frontUrl;
-                } catch (e) {
-                    console.error("Front side save failed", e);
-                    // Decide if we want to stop or continue. For now, we continue but log error? 
-                    // Or maybe throw to alert user. Let's throw to be safe.
-                    throw new Error("Failed to save Front side: " + (e as any).message);
-                }
-            }
-
-            if (!sideToSave || sideToSave === 'back') {
-                setSaveStatus(sideToSave ? 'Saving Back...' : 'Processing Back...');
-                try {
-                    // Add a small delay to let UI breathe
-                    await new Promise(r => setTimeout(r, 500));
-                    const backUrl = await captureAndUploadImage('back', backData, currentFolder);
-                    imageUpdates.back_side = backUrl;
-                } catch (e) {
-                    console.error("Back side save failed", e);
-                    throw new Error("Failed to save Back side: " + (e as any).message);
-                }
-            }
-
-            if (Object.keys(imageUpdates).length > 0) {
-                setSaveStatus('Finalizing...');
-                // 3. UPDATE PROFILE WITH IMAGE URLs
-                await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
-            }
-
-            clearTimeout(safetyTimeout);
-            if (mountedRef.current) {
-                showToast(sideToSave ? `${sideToSave === 'front' ? 'Front' : 'Back'} side saved!` : "All changes saved!", 'success');
-                if (!profileId) navigate(`/profile/${currentProfileId}/edit`); // Only redirect on first create
-            }
-
-        } catch (err: any) {
-            clearTimeout(safetyTimeout);
-            console.error(err);
-            if (mountedRef.current) showToast(`${err.message}`, 'error');
-        } finally {
+            // Show instant success - design is saved!
             if (mountedRef.current) {
                 setIsSaving(false);
                 setSaveStatus('');
+                showToast("Design saved! Generating images...", 'success');
+            }
+
+            // ===== PHASE 2: BACKGROUND IMAGE GENERATION (SLOW) =====
+            // This runs in the background without blocking UI
+            (async () => {
+                try {
+                    const imageUpdates: any = {};
+
+                    // Generate images sequentially with reduced quality for speed
+                    if (!sideToSave || sideToSave === 'front') {
+                        const frontUrl = await captureAndUploadImage('front', frontData, currentFolder);
+                        imageUpdates.front_side = frontUrl;
+                    }
+
+                    if (!sideToSave || sideToSave === 'back') {
+                        await new Promise(r => setTimeout(r, 300)); // Brief pause
+                        const backUrl = await captureAndUploadImage('back', backData, currentFolder);
+                        imageUpdates.back_side = backUrl;
+                    }
+
+                    if (Object.keys(imageUpdates).length > 0) {
+                        await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
+                    }
+
+                    if (mountedRef.current) {
+                        showToast("Print-ready images generated!", 'success');
+                    }
+                } catch (err: any) {
+                    console.error("Background image generation failed:", err);
+                    if (mountedRef.current) {
+                        showToast("Images failed to generate. Design is saved but you may need to re-save for printing.", 'info');
+                    }
+                }
+            })();
+
+        } catch (err: any) {
+            console.error(err);
+            if (mountedRef.current) {
+                setIsSaving(false);
+                setSaveStatus('');
+                showToast(`Save failed: ${err.message}`, 'error');
             }
         }
     }, [navigate, showToast, cardType, frontData, backData, profileId, storagePath, isSaving]);

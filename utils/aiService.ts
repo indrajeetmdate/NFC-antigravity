@@ -34,11 +34,11 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
         const textColor = isDark ? '#FFFFFF' : '#000000';
 
         if (params.side === 'front') {
-            // Person Name (Top Left)
+            // Person Name (Top Left with proper margin)
             texts.push({
                 id: 'person',
                 content: params.personName || 'Your Name',
-                x: 10, y: 15,
+                x: 20, y: 15,
                 scale: 1,
                 color: textColor,
                 fontWeight: '700',
@@ -53,7 +53,7 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
             texts.push({
                 id: 'company',
                 content: params.companyName || 'Company Name',
-                x: 10, y: 28,
+                x: 20, y: 28,
                 scale: 1,
                 color: textColor,
                 fontWeight: '500',
@@ -83,8 +83,8 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
             });
         }
 
-        // QR Code - Bottom Left (Back side only)
-        if (params.side === 'back') {
+        // QR Code - Bottom Right (Front side only with transparent background)
+        if (params.side === 'front') {
             // Get preset color or fallback to black/white contrast
             let qrColorHex = params.colors[0] || (isDark ? 'ffffff' : '000000');
             // Remove hash if present
@@ -96,7 +96,7 @@ export const generateCardDesign = async (params: GenerationParams): Promise<{ da
             images.push({
                 id: 'qr',
                 url: qrUrl,
-                x: 10, // Left
+                x: 85, // Right
                 y: 85, // Bottom
                 scale: 0.6,
                 width: 100, height: 100
