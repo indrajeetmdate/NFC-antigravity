@@ -488,35 +488,40 @@ const CardDesignerPage: React.FC = () => {
             // Fire and forget JSON update for speed (or await if critical, but we want speed)
             await supabase.from('profiles').update(jsonUpdates).eq('id', currentProfileId);
 
-            // 2. GENERATE AND UPLOAD IMAGES IN PARALLEL (Background - Slower)
-            const uploadPromises: Promise<any>[] = [];
+            // 2. GENERATE AND UPLOAD IMAGES SEQUENTIALLY (To avoid freezing)
             const imageUpdates: any = {};
 
             // Only generate images if needed
             if (!sideToSave || sideToSave === 'front') {
-                uploadPromises.push((async () => {
-                    setSaveStatus(sideToSave ? 'Saving Front...' : 'Processing Front...');
+                setSaveStatus(sideToSave ? 'Saving Front...' : 'Processing Front...');
+                try {
                     const frontUrl = await captureAndUploadImage('front', frontData, currentFolder);
                     imageUpdates.front_side = frontUrl;
-                })());
+                } catch (e) {
+                    console.error("Front side save failed", e);
+                    // Decide if we want to stop or continue. For now, we continue but log error? 
+                    // Or maybe throw to alert user. Let's throw to be safe.
+                    throw new Error("Failed to save Front side: " + (e as any).message);
+                }
             }
 
             if (!sideToSave || sideToSave === 'back') {
-                uploadPromises.push((async () => {
-                    setSaveStatus(sideToSave ? 'Saving Back...' : 'Processing Back...');
+                setSaveStatus(sideToSave ? 'Saving Back...' : 'Processing Back...');
+                try {
+                    // Add a small delay to let UI breathe
+                    await new Promise(r => setTimeout(r, 500));
                     const backUrl = await captureAndUploadImage('back', backData, currentFolder);
                     imageUpdates.back_side = backUrl;
-                })());
+                } catch (e) {
+                    console.error("Back side save failed", e);
+                    throw new Error("Failed to save Back side: " + (e as any).message);
+                }
             }
 
-            if (uploadPromises.length > 0) {
-                setSaveStatus('Finalizing Images...');
-                await Promise.all(uploadPromises);
-
+            if (Object.keys(imageUpdates).length > 0) {
+                setSaveStatus('Finalizing...');
                 // 3. UPDATE PROFILE WITH IMAGE URLs
-                if (Object.keys(imageUpdates).length > 0) {
-                    await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
-                }
+                await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
             }
 
             clearTimeout(safetyTimeout);
@@ -568,6 +573,7 @@ const CardDesignerPage: React.FC = () => {
                     setCardType={setCardType}
                     onReset={handleReset}
                     onAiGenerate={() => setAiModalOpen(true)}
+                    onTriggerUpload={() => uploadDesignRef.current?.click()}
                 />
             </div>
 
@@ -605,6 +611,7 @@ const CardDesignerPage: React.FC = () => {
                             className="mb-1"
                         />
                         <span className="text-[10px] text-zinc-300 font-medium bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm animate-pulse">Autosave enabled (5s)</span>
+                        {/* Hidden Input for Upload Design */}
                         <input type="file" accept="image/*" className="hidden" ref={uploadDesignRef} onChange={(e) => {
                             if (e.target.files?.[0]) {
                                 const reader = new FileReader();
@@ -612,10 +619,6 @@ const CardDesignerPage: React.FC = () => {
                                 reader.readAsDataURL(e.target.files[0]);
                             }
                         }} />
-                        <button onClick={() => uploadDesignRef.current?.click()} className="flex items-center gap-2 bg-gold text-black px-4 py-2 rounded-lg text-sm font-bold shadow-lg hover:bg-gold-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                            Upload Design
-                        </button>
                     </div>
                 </div>
 

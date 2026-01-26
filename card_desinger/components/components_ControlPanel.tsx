@@ -19,11 +19,12 @@ interface ControlPanelProps {
     setCardType: (type: 'business_card' | 'standie') => void;
     onReset: () => void;
     onAiGenerate: () => void;
+    onTriggerUpload: () => void;
 }
 
 const uuid = () => Math.random().toString(36).substring(2, 9);
 
-type Mode = 'MAIN' | 'QR' | 'SETTINGS' | 'COLOR';
+type Mode = 'HOME' | 'TOOLS' | 'QR' | 'SETTINGS' | 'COLOR';
 
 // Helper: HSV to Hex
 const hsvToHex = (h: number, s: number, v: number) => {
@@ -68,10 +69,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     cardType,
     setCardType,
     onReset,
-    onAiGenerate
+    onAiGenerate,
+    onTriggerUpload
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [mode, setMode] = useState<Mode>('MAIN');
+    const [mode, setMode] = useState<Mode>('HOME');
 
     // Color picker states
     const [hsv, setHsv] = useState({ h: 180, s: 50, v: 50 });
@@ -149,7 +151,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             if (hasQr) return { ...prev, images: prev.images.map(i => i.id === 'qr' ? { ...i, url: dataUrl } : i) };
             return { ...prev, images: [...prev.images, { id: 'qr', url: dataUrl, x: 50, y: 50, scale: 1, width: 100, height: 100 }] };
         });
-        setMode('MAIN');
+        setMode('TOOLS');
     };
 
     const handleDelete = () => {
@@ -258,7 +260,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <div className={`w-full bg-zinc-900 p-2 animate-slide-up ${editorHeightClass}`}>
                     <div className="flex items-center justify-between mb-4 border-b border-zinc-800 pb-2">
                         <span className="text-xs font-bold text-gold uppercase tracking-wider">Background Color</span>
-                        <button onClick={() => setMode('MAIN')} className="text-xs text-zinc-400 bg-zinc-800 px-3 py-1 rounded hover:text-white">Done</button>
+                        <button onClick={() => setMode('TOOLS')} className="text-xs text-zinc-400 bg-zinc-800 px-3 py-1 rounded hover:text-white">Done</button>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                         <RangeSlider label="Hue" value={hsv.h} onChange={(e: any) => handleHsvChange('h', parseInt(e.target.value))} min={0} max={360} step={1} />
@@ -276,14 +278,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             );
         }
 
-        if (mode === 'QR') return <div className={`w-full bg-zinc-900 p-2 ${editorHeightClass}`}><CompactQrGenerator onUpdate={handleQrUpdate} onCancel={() => setMode('MAIN')} /></div>;
+        if (mode === 'QR') return <div className={`w-full bg-zinc-900 p-2 ${editorHeightClass}`}><CompactQrGenerator onUpdate={handleQrUpdate} onCancel={() => setMode('TOOLS')} /></div>;
 
         if (mode === 'SETTINGS') {
             return (
                 <div className={`w-full bg-zinc-900 p-2 animate-slide-up ${editorHeightClass}`}>
                     <div className="flex items-center justify-between mb-4 border-b border-zinc-800 pb-2">
                         <span className="text-xs font-bold text-gold uppercase tracking-wider">Card Settings</span>
-                        <button onClick={() => setMode('MAIN')} className="text-xs text-zinc-400 bg-zinc-800 px-3 py-1 rounded hover:text-white">Done</button>
+                        <button onClick={() => setMode('TOOLS')} className="text-xs text-zinc-400 bg-zinc-800 px-3 py-1 rounded hover:text-white">Done</button>
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-4">
@@ -319,63 +321,99 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             );
         }
 
-        return (
-            <div className="flex overflow-x-auto gap-2 px-2 pb-1 scrollbar-hide justify-between sm:justify-start pt-2">
-                <IconButton
-                    icon={
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-4H9v-2h6v2h-2v4z" />
-                        </svg>
-                    }
-                    label="Add Text"
-                    tooltip="Add custom text labels to your card (e.g., name, title, phone)"
-                    onClick={handleAddText}
-                />
-
-                <div className="relative">
-                    <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={(e) => { if (e.target.files?.[0]) handleAddImage(e.target.files[0]); e.target.value = ''; }} />
+        if (mode === 'TOOLS') {
+            return (
+                <div className="flex overflow-x-auto gap-2 px-2 pb-1 scrollbar-hide justify-between sm:justify-start pt-2">
                     <IconButton
                         icon={
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                <path fillRule="evenodd" d="M1.5 6a2.25 2.25 0 012.25-2.25h16.5A2.25 2.25 0 0122.5 6v12a2.25 2.25 0 01-2.25 2.25H3.75A2.25 2.25 0 011.5 18V6zM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0021 18v-1.94l-2.69-2.689a1.5 1.5 0 00-2.12 0l-.88.879.97.97a.75.75 0 11-1.06 1.06l-5.16-5.159a1.5 1.5 0 00-2.12 0L3 16.061zm10.125-7.81a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0z" clipRule="evenodd" />
+                                <path fillRule="evenodd" d="M11.03 3.97a.75.75 0 010 1.06l-6.22 6.22H21a.75.75 0 010 1.5H4.81l6.22 6.22a.75.75 0 11-1.06 1.06l-7.5-7.5a.75.75 0 010-1.06l7.5-7.5a.75.75 0 011.06 0z" clipRule="evenodd" />
                             </svg>
                         }
-                        label="Add Logo"
-                        tooltip="Upload your company logo or any image (JPG, PNG)"
-                        onClick={() => fileInputRef.current?.click()}
+                        label="Back"
+                        tooltip="Back to Menu"
+                        onClick={() => setMode('HOME')}
+                    />
+                    <IconButton
+                        icon={
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-4H9v-2h6v2h-2v4z" />
+                            </svg>
+                        }
+                        label="Add Text"
+                        tooltip="Add custom text labels to your card (e.g., name, title, phone)"
+                        onClick={handleAddText}
+                    />
+
+                    <div className="relative">
+                        <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={(e) => { if (e.target.files?.[0]) handleAddImage(e.target.files[0]); e.target.value = ''; }} />
+                        <IconButton
+                            icon={
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                    <path fillRule="evenodd" d="M1.5 6a2.25 2.25 0 012.25-2.25h16.5A2.25 2.25 0 0122.5 6v12a2.25 2.25 0 01-2.25 2.25H3.75A2.25 2.25 0 011.5 18V6zM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0021 18v-1.94l-2.69-2.689a1.5 1.5 0 00-2.12 0l-.88.879.97.97a.75.75 0 11-1.06 1.06l-5.16-5.159a1.5 1.5 0 00-2.12 0L3 16.061zm10.125-7.81a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0z" clipRule="evenodd" />
+                                </svg>
+                            }
+                            label="Add Logo"
+                            tooltip="Upload your company logo or any image (JPG, PNG)"
+                            onClick={() => fileInputRef.current?.click()}
+                        />
+                    </div>
+
+                    <IconButton
+                        icon={
+                            <div className="w-5 h-5 rounded-full border border-zinc-600 shadow-sm" style={{ backgroundColor: activeCardData.backgroundColor }}></div>
+                        }
+                        label="BG Color"
+                        tooltip="Change card background color with intuitive color picker"
+                        onClick={() => setMode('COLOR')}
+                    />
+
+                    <IconButton
+                        icon={
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                <path fillRule="evenodd" d="M3 4.5A1.5 1.5 0 014.5 3h4.5A1.5 1.5 0 0110.5 4.5v4.5A1.5 1.5 0 019 10.5H4.5A1.5 1.5 0 013 9V4.5zm1.5 0v4.5h4.5V4.5h-4.5zM13.5 4.5A1.5 1.5 0 0115 3h4.5A1.5 1.5 0 0121 4.5v4.5A1.5 1.5 0 0119.5 10.5H15A1.5 1.5 0 0113.5 9V4.5zm1.5 0v4.5h4.5V4.5h-4.5zM3 15a1.5 1.5 0 011.5-1.5h4.5A1.5 1.5 0 0110.5 15v4.5A1.5 1.5 0 019 21H4.5A1.5 1.5 0 013 19.5V15zm1.5 0v4.5h4.5V15h-4.5zM13.5 15a1.5 1.5 0 011.5-1.5h4.5a1.5 1.5 0 011.5 1.5v4.5a1.5 1.5 0 01-1.5 1.5h-4.5A1.5 1.5 0 0113.5 19.5V15z" clipRule="evenodd" />
+                            </svg>
+                        }
+                        label="Add QR"
+                        tooltip="Generate QR code that links to your profile (transparent background)"
+                        onClick={() => setMode('QR')}
+                    />
+
+                    <IconButton
+                        icon={
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                <path fillRule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 00-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 00-2.282.819l-.922 1.597a1.875 1.875 0 00.432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 000 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 00-.432 2.385l.922 1.597a1.875 1.875 0 002.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 002.28-.819l.923-1.597a1.875 1.875 0 00-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 000-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 00-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 00-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 00-1.85-1.567h-1.843zM12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" clipRule="evenodd" />
+                            </svg>
+                        }
+                        label="Settings"
+                        tooltip="Card settings, download options, and reset"
+                        onClick={() => setMode('SETTINGS')}
                     />
                 </div>
+            );
+        }
 
-                <IconButton
-                    icon={
-                        <div className="w-5 h-5 rounded-full border border-zinc-600 shadow-sm" style={{ backgroundColor: activeCardData.backgroundColor }}></div>
-                    }
-                    label="BG Color"
-                    tooltip="Change card background color with intuitive color picker"
-                    onClick={() => setMode('COLOR')}
-                />
-
-                <IconButton
-                    icon={
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                            <path fillRule="evenodd" d="M3 4.5A1.5 1.5 0 014.5 3h4.5A1.5 1.5 0 0110.5 4.5v4.5A1.5 1.5 0 019 10.5H4.5A1.5 1.5 0 013 9V4.5zm1.5 0v4.5h4.5V4.5h-4.5zM13.5 4.5A1.5 1.5 0 0115 3h4.5A1.5 1.5 0 0121 4.5v4.5A1.5 1.5 0 0119.5 10.5H15A1.5 1.5 0 0113.5 9V4.5zm1.5 0v4.5h4.5V4.5h-4.5zM3 15a1.5 1.5 0 011.5-1.5h4.5A1.5 1.5 0 0110.5 15v4.5A1.5 1.5 0 019 21H4.5A1.5 1.5 0 013 19.5V15zm1.5 0v4.5h4.5V15h-4.5zM13.5 15a1.5 1.5 0 011.5-1.5h4.5a1.5 1.5 0 011.5 1.5v4.5a1.5 1.5 0 01-1.5 1.5h-4.5A1.5 1.5 0 0113.5 19.5V15z" clipRule="evenodd" />
-                        </svg>
-                    }
-                    label="Add QR"
-                    tooltip="Generate QR code that links to your profile (transparent background)"
-                    onClick={() => setMode('QR')}
-                />
-
-                <IconButton
-                    icon={
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                            <path fillRule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 00-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 00-2.282.819l-.922 1.597a1.875 1.875 0 00.432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 000 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 00-.432 2.385l.922 1.597a1.875 1.875 0 002.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 002.28-.819l.923-1.597a1.875 1.875 0 00-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 000-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 00-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 00-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 00-1.85-1.567h-1.843zM12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" clipRule="evenodd" />
-                        </svg>
-                    }
-                    label="Settings"
-                    tooltip="Card settings, download options, and reset"
-                    onClick={() => setMode('SETTINGS')}
-                />
+        // HOME View
+        return (
+            <div className={`grid grid-cols-2 gap-4 p-4 ${editorHeightClass} items-center`}>
+                <button
+                    onClick={() => setMode('TOOLS')}
+                    className="flex flex-col items-center justify-center gap-3 bg-zinc-800 p-6 rounded-xl border border-zinc-700 hover:border-gold hover:bg-zinc-700 transition-all group shadow-md"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400 group-hover:text-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    <span className="text-sm font-bold text-white group-hover:text-gold uppercase tracking-wider">Design Your Own</span>
+                </button>
+                <button
+                    onClick={onTriggerUpload}
+                    className="flex flex-col items-center justify-center gap-3 bg-zinc-800 p-6 rounded-xl border border-zinc-700 hover:border-gold hover:bg-zinc-700 transition-all group shadow-md"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400 group-hover:text-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span className="text-sm font-bold text-white group-hover:text-gold uppercase tracking-wider">Upload Design</span>
+                </button>
             </div>
         );
     };
@@ -399,6 +437,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 6 6.5 9.5 3 12l3.5 2.5L9 18l2.5-3.5L15 12l-3.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z" />
                         </svg>
                         <span className="hidden sm:inline">AI Magic</span>
+                        <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider">Beta</span>
                     </button>
 
                     {/* View Toggles */}
