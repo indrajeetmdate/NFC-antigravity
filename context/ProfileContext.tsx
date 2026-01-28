@@ -109,6 +109,34 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [fetchProfile]);
 
+  // Handle Tab Visibility Changes (Fix for Background Throttling)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        // console.log("Tab active: Validating session...");
+        try {
+          const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+
+          if (error || !currentSession) {
+            // console.log("Session potentially stale, forcing refresh...");
+            const { data, error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError) throw refreshError;
+            if (data.session) setSession(data.session);
+          } else {
+            // Optional: If we have a session but local state is null, sync it
+            // checks against current closure 'session' might be stale, but setSession is safe
+          }
+        } catch (err) {
+          console.error("Session recovery failed:", err);
+          // Don't force sign out here, let the user try to interact or the auth listener handle it
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
   const refreshProfile = useCallback(async () => {
     if (session) {
       await fetchProfile(session);
