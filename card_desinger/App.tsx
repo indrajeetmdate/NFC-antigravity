@@ -433,135 +433,81 @@ const CardDesignerPage: React.FC = () => {
         return publicUrl;
     };
 
-    const handleSaveAndPrint = useCallback(async (sideToSave?: 'front' | 'back') => {
-        // 1. Visibility Check: Abort if tab is hidden (html-to-image requires visibility)
-        if (document.hidden) {
-            showToast("Cannot save while tab is hidden. Please keep the app active.", "error");
-            return;
+    // ===== WATCHDOG TIMER: Guaranteed escape hatch for stuck states =====
+    const saveStartTimeRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (isSaving) {
+            if (!saveStartTimeRef.current) {
+                saveStartTimeRef.current = Date.now();
+            }
+            const watchdog = setInterval(() => {
+                if (saveStartTimeRef.current && (Date.now() - saveStartTimeRef.current > 10000)) {
+                    console.warn("Watchdog: Forcing isSaving reset after 10s timeout");
+                    setIsSaving(false);
+                    setSaveStatus('');
+                    saveStartTimeRef.current = null;
+                }
+            }, 2000);
+            return () => clearInterval(watchdog);
+        } else {
+            saveStartTimeRef.current = null;
         }
+    }, [isSaving]);
 
+    // ===== SIMPLIFIED SAVE: Only saves JSON data (fast & reliable) =====
+    const handleSaveAndPrint = useCallback(async () => {
         if (isSaving) return;
 
         setIsSaving(true);
-        setSaveStatus('Checking session...');
+        setSaveStatus('Saving design...');
 
         try {
-            // Add a 15-second timeout race
-            await Promise.race([
-                (async () => {
-                    // 2. Session Re-validation: Wake up connection and verify token
-                    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-                    if (sessionError || !session) {
-                        // Try one refresh attempt if session is missing but we thought we were logged in
-                        const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-                        if (!refreshedSession) throw new Error("Session expired. Please log in again.");
-                    }
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("Please log in to save.");
 
-                    setSaveStatus('Saving design...');
-                    const { data: { user } } = await supabase.auth.getUser(); // Double check user
-                    if (!user) throw new Error("Login required.");
+            let currentProfileId = profileId;
+            let currentFolder = storagePath;
 
-                    let currentProfileId = profileId;
-                    let currentFolder = storagePath;
-
-                    if (!currentProfileId) {
-                        // Create profile if missing
-                        const { data: existing } = await supabase.from('profiles').select('id, storage_folder_path').eq('user_id', user.id).maybeSingle();
-                        if (existing) {
-                            currentProfileId = existing.id;
-                            currentFolder = existing.storage_folder_path;
-                        } else {
-                            const tempSlug = `card_${Math.random().toString(36).substr(2, 5)}`;
-                            const { data: newProfile, error } = await supabase.from('profiles').insert({
-                                user_id: user.id,
-                                full_name: user.user_metadata?.full_name || 'User',
-                                profile_slug: tempSlug,
-                                card_type: cardType,
-                                storage_folder_path: `${tempSlug}_${user.id.substring(0, 5)}`
-                            }).select().single();
-
-                            if (error || !newProfile) throw new Error("Could not initialize profile.");
-                            currentProfileId = newProfile.id;
-                            currentFolder = newProfile.storage_folder_path;
-                        }
-                    }
-
-                    if (!currentFolder) throw new Error("Storage folder path is missing.");
-
-                    // ===== PHASE 1: INSTANT JSON SAVE (FAST) =====
-                    const jsonUpdates = {
+            if (!currentProfileId) {
+                const { data: existing } = await supabase.from('profiles').select('id, storage_folder_path').eq('user_id', user.id).maybeSingle();
+                if (existing) {
+                    currentProfileId = existing.id;
+                    currentFolder = existing.storage_folder_path;
+                } else {
+                    const tempSlug = `card_${Math.random().toString(36).substr(2, 5)}`;
+                    const { data: newProfile, error } = await supabase.from('profiles').insert({
+                        user_id: user.id,
+                        full_name: user.user_metadata?.full_name || 'User',
+                        profile_slug: tempSlug,
                         card_type: cardType,
-                        design_data: { front: frontData, back: backData, type: cardType },
-                        updated_at: new Date().toISOString()
-                    };
+                        storage_folder_path: `${tempSlug}_${user.id.substring(0, 5)}`
+                    }).select().single();
 
-                    await supabase.from('profiles').update(jsonUpdates).eq('id', currentProfileId);
+                    if (error || !newProfile) throw new Error("Could not initialize profile.");
+                    currentProfileId = newProfile.id;
+                    currentFolder = newProfile.storage_folder_path;
+                }
+            }
 
-                    // Show instant success - design is saved!
-                    if (mountedRef.current) {
-                        setSaveStatus('Optimizing images...'); // Update status for background phase
-                        showToast("Design data saved! Processing images...", 'success');
+            if (!currentFolder) throw new Error("Storage folder path is missing.");
 
-                        // NOTE: We keep isSaving=true for a bit longer or until BG phase starts?
-                        // Actually, let's keep it true until we hand off to BG task or timeout?
-                        // The user complained about it sticking. 
-                        // Let's release the lock NOW so UI is responsive, but show a "processing" toast.
-                        // Wait, if we release lock, user might double click. 
-                        // Let's release the lock here as per original design, but ensure it happens.
-                    }
+            // Save JSON data only (instant, no html-to-image dependency)
+            await supabase.from('profiles').update({
+                card_type: cardType,
+                design_data: { front: frontData, back: backData, type: cardType },
+                updated_at: new Date().toISOString()
+            }).eq('id', currentProfileId);
 
-                    // ===== PHASE 2: BACKGROUND IMAGE GENERATION (SLOW) =====
-                    // This runs in the background without blocking UI
-                    // We define it here but don't await it in the main race
-                    (async () => {
-                        try {
-                            const imageUpdates: any = {};
-
-                            // Generate images sequentially with reduced quality for speed
-                            // If sideToSave is undefined, save BOTH
-                            if (!sideToSave || sideToSave === 'front') {
-                                const frontUrl = await captureAndUploadImage('front', frontData, currentFolder);
-                                imageUpdates.front_side = frontUrl;
-                            }
-
-                            if (!sideToSave || sideToSave === 'back') {
-                                // Small delay to let UI breathe if doing both
-                                if (!sideToSave) await new Promise(r => setTimeout(r, 300));
-                                const backUrl = await captureAndUploadImage('back', backData, currentFolder);
-                                imageUpdates.back_side = backUrl;
-                            }
-
-                            if (Object.keys(imageUpdates).length > 0) {
-                                await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
-                            }
-
-                            if (mountedRef.current) {
-                                showToast("Print-ready images generated!", 'success');
-                            }
-                        } catch (err: any) {
-                            console.error("Background image generation failed:", err);
-                            if (mountedRef.current) {
-                                showToast("Images failed to generate. Design is saved but you may need to re-save for printing.", 'info');
-                            }
-                        }
-                    })();
-
-                })(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error("Save operation timed out")), 15000))
-            ]);
+            showToast("Design saved successfully!", 'success');
 
         } catch (err: any) {
-            console.error(err);
-            if (mountedRef.current) {
-                showToast(`Save failed: ${err.message}`, 'error');
-            }
+            console.error("Save error:", err);
+            showToast(`Save failed: ${err.message}`, 'error');
         } finally {
-            if (mountedRef.current) {
-                setIsSaving(false);
-                setSaveStatus('');
-            }
+            setIsSaving(false);
+            setSaveStatus('');
         }
-    }, [navigate, showToast, cardType, frontData, backData, profileId, storagePath, isSaving]);
+    }, [showToast, cardType, frontData, backData, profileId, storagePath, isSaving]);
 
     const activeData = activeSide === 'front' ? frontData : backData;
     const setActiveData = activeSide === 'front' ? setFrontData : setBackData;
