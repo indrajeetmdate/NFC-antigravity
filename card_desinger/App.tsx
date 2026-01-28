@@ -440,91 +440,110 @@ const CardDesignerPage: React.FC = () => {
         setSaveStatus('Saving design...');
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error("Login required.");
+            // Add a 15-second timeout race for the initial JSON save
+            await Promise.race([
+                (async () => {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) throw new Error("Login required.");
 
-            let currentProfileId = profileId;
-            let currentFolder = storagePath;
+                    let currentProfileId = profileId;
+                    let currentFolder = storagePath;
 
-            if (!currentProfileId) {
-                // Create profile if missing
-                const { data: existing } = await supabase.from('profiles').select('id, storage_folder_path').eq('user_id', user.id).maybeSingle();
-                if (existing) {
-                    currentProfileId = existing.id;
-                    currentFolder = existing.storage_folder_path;
-                } else {
-                    const tempSlug = `card_${Math.random().toString(36).substr(2, 5)}`;
-                    const { data: newProfile, error } = await supabase.from('profiles').insert({
-                        user_id: user.id,
-                        full_name: user.user_metadata?.full_name || 'User',
-                        profile_slug: tempSlug,
+                    if (!currentProfileId) {
+                        // Create profile if missing
+                        const { data: existing } = await supabase.from('profiles').select('id, storage_folder_path').eq('user_id', user.id).maybeSingle();
+                        if (existing) {
+                            currentProfileId = existing.id;
+                            currentFolder = existing.storage_folder_path;
+                        } else {
+                            const tempSlug = `card_${Math.random().toString(36).substr(2, 5)}`;
+                            const { data: newProfile, error } = await supabase.from('profiles').insert({
+                                user_id: user.id,
+                                full_name: user.user_metadata?.full_name || 'User',
+                                profile_slug: tempSlug,
+                                card_type: cardType,
+                                storage_folder_path: `${tempSlug}_${user.id.substring(0, 5)}`
+                            }).select().single();
+
+                            if (error || !newProfile) throw new Error("Could not initialize profile.");
+                            currentProfileId = newProfile.id;
+                            currentFolder = newProfile.storage_folder_path;
+                        }
+                    }
+
+                    if (!currentFolder) throw new Error("Storage folder path is missing.");
+
+                    // ===== PHASE 1: INSTANT JSON SAVE (FAST) =====
+                    const jsonUpdates = {
                         card_type: cardType,
-                        storage_folder_path: `${tempSlug}_${user.id.substring(0, 5)}`
-                    }).select().single();
+                        design_data: { front: frontData, back: backData, type: cardType },
+                        updated_at: new Date().toISOString()
+                    };
 
-                    if (error || !newProfile) throw new Error("Could not initialize profile.");
-                    currentProfileId = newProfile.id;
-                    currentFolder = newProfile.storage_folder_path;
-                }
-            }
+                    await supabase.from('profiles').update(jsonUpdates).eq('id', currentProfileId);
 
-            if (!currentFolder) throw new Error("Storage folder path is missing.");
-
-            // ===== PHASE 1: INSTANT JSON SAVE (FAST) =====
-            const jsonUpdates = {
-                card_type: cardType,
-                design_data: { front: frontData, back: backData, type: cardType },
-                updated_at: new Date().toISOString()
-            };
-
-            await supabase.from('profiles').update(jsonUpdates).eq('id', currentProfileId);
-
-            // Show instant success - design is saved!
-            if (mountedRef.current) {
-                setIsSaving(false);
-                setSaveStatus('');
-                showToast("Design saved! Generating images...", 'success');
-            }
-
-            // ===== PHASE 2: BACKGROUND IMAGE GENERATION (SLOW) =====
-            // This runs in the background without blocking UI
-            (async () => {
-                try {
-                    const imageUpdates: any = {};
-
-                    // Generate images sequentially with reduced quality for speed
-                    if (!sideToSave || sideToSave === 'front') {
-                        const frontUrl = await captureAndUploadImage('front', frontData, currentFolder);
-                        imageUpdates.front_side = frontUrl;
-                    }
-
-                    if (!sideToSave || sideToSave === 'back') {
-                        await new Promise(r => setTimeout(r, 300)); // Brief pause
-                        const backUrl = await captureAndUploadImage('back', backData, currentFolder);
-                        imageUpdates.back_side = backUrl;
-                    }
-
-                    if (Object.keys(imageUpdates).length > 0) {
-                        await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
-                    }
-
+                    // Show instant success - design is saved!
                     if (mountedRef.current) {
-                        showToast("Print-ready images generated!", 'success');
+                        setSaveStatus('Optimizing images...'); // Update status for background phase
+                        showToast("Design data saved! Processing images...", 'success');
+
+                        // NOTE: We keep isSaving=true for a bit longer or until BG phase starts?
+                        // Actually, let's keep it true until we hand off to BG task or timeout?
+                        // The user complained about it sticking. 
+                        // Let's release the lock NOW so UI is responsive, but show a "processing" toast.
+                        // Wait, if we release lock, user might double click. 
+                        // Let's release the lock here as per original design, but ensure it happens.
                     }
-                } catch (err: any) {
-                    console.error("Background image generation failed:", err);
-                    if (mountedRef.current) {
-                        showToast("Images failed to generate. Design is saved but you may need to re-save for printing.", 'info');
-                    }
-                }
-            })();
+
+                    // ===== PHASE 2: BACKGROUND IMAGE GENERATION (SLOW) =====
+                    // This runs in the background without blocking UI
+                    // We define it here but don't await it in the main race
+                    (async () => {
+                        try {
+                            const imageUpdates: any = {};
+
+                            // Generate images sequentially with reduced quality for speed
+                            // If sideToSave is undefined, save BOTH
+                            if (!sideToSave || sideToSave === 'front') {
+                                const frontUrl = await captureAndUploadImage('front', frontData, currentFolder);
+                                imageUpdates.front_side = frontUrl;
+                            }
+
+                            if (!sideToSave || sideToSave === 'back') {
+                                // Small delay to let UI breathe if doing both
+                                if (!sideToSave) await new Promise(r => setTimeout(r, 300));
+                                const backUrl = await captureAndUploadImage('back', backData, currentFolder);
+                                imageUpdates.back_side = backUrl;
+                            }
+
+                            if (Object.keys(imageUpdates).length > 0) {
+                                await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
+                            }
+
+                            if (mountedRef.current) {
+                                showToast("Print-ready images generated!", 'success');
+                            }
+                        } catch (err: any) {
+                            console.error("Background image generation failed:", err);
+                            if (mountedRef.current) {
+                                showToast("Images failed to generate. Design is saved but you may need to re-save for printing.", 'info');
+                            }
+                        }
+                    })();
+
+                })(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Save operation timed out")), 15000))
+            ]);
 
         } catch (err: any) {
             console.error(err);
             if (mountedRef.current) {
+                showToast(`Save failed: ${err.message}`, 'error');
+            }
+        } finally {
+            if (mountedRef.current) {
                 setIsSaving(false);
                 setSaveStatus('');
-                showToast(`Save failed: ${err.message}`, 'error');
             }
         }
     }, [navigate, showToast, cardType, frontData, backData, profileId, storagePath, isSaving]);

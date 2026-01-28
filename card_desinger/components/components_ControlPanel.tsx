@@ -453,22 +453,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 {saveStatus || 'Saving...'}
                             </div>
                         ) : (
-                            <>
-                                <button
-                                    onClick={() => onSave('front')}
-                                    className="bg-zinc-800 text-white border border-zinc-600 px-3 py-1.5 rounded-l-md text-[10px] font-bold hover:bg-zinc-700 hover:border-gold transition-all"
-                                    title="Save Front Side Only"
-                                >
-                                    Save Front
-                                </button>
-                                <button
-                                    onClick={() => onSave('back')}
-                                    className="bg-zinc-800 text-white border border-zinc-600 border-l-0 px-3 py-1.5 rounded-r-md text-[10px] font-bold hover:bg-zinc-700 hover:border-gold transition-all"
-                                    title="Save Back Side Only"
-                                >
-                                    Save Back
-                                </button>
-                            </>
+                            <button
+                                onClick={() => onSave()}
+                                className="bg-zinc-800 text-white border border-zinc-600 px-4 py-1.5 rounded-md text-[10px] font-bold hover:bg-zinc-700 hover:border-gold transition-all shadow-sm"
+                                title="Save Design (Front & Back)"
+                            >
+                                Save Design
+                            </button>
                         )}
                     </div>
                 </div>
