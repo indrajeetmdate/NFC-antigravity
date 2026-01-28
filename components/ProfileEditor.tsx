@@ -102,6 +102,8 @@ const ProfileEditor: React.FC = () => {
     const hasMounted = useRef(false);
     const mountedRef = useRef(true);
 
+    const initializedRef = useRef<string | null>(null);
+
     // Handle preview mode changes
     const handlePreviewModeChange = (mode: 'mobile' | 'desktop') => {
         setPreviewMode(mode);
@@ -130,14 +132,24 @@ const ProfileEditor: React.FC = () => {
     useEffect(() => {
         // If we are editing and have profile data from context, use it to initialize form
         if (id && profile && profile.id === id) {
-            initializeForm(profile);
+            // Prevent infinite loop: Only initialize if we haven't initialized this specific profile ID yet
+            if (initializedRef.current !== id) {
+                initializeForm(profile);
+                initializedRef.current = id;
+            }
         } else if (id) {
             // If context doesn't have it (e.g. direct link or stale), fetch specific
             const fetchSpecific = async () => {
                 const { data } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
-                if (data && mountedRef.current) initializeForm(data);
+                if (data && mountedRef.current) {
+                    initializeForm(data);
+                    initializedRef.current = id;
+                }
             };
-            fetchSpecific();
+            // Only fetch if we haven't initialized this ID (to avoid race conditions/overwrites)
+            if (initializedRef.current !== id) {
+                fetchSpecific();
+            }
         } else {
             // New profile
             supabase.auth.getUser().then(({ data: { user } }) => {
