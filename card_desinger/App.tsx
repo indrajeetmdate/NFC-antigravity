@@ -434,16 +434,31 @@ const CardDesignerPage: React.FC = () => {
     };
 
     const handleSaveAndPrint = useCallback(async (sideToSave?: 'front' | 'back') => {
+        // 1. Visibility Check: Abort if tab is hidden (html-to-image requires visibility)
+        if (document.hidden) {
+            showToast("Cannot save while tab is hidden. Please keep the app active.", "error");
+            return;
+        }
+
         if (isSaving) return;
 
         setIsSaving(true);
-        setSaveStatus('Saving design...');
+        setSaveStatus('Checking session...');
 
         try {
-            // Add a 15-second timeout race for the initial JSON save
+            // Add a 15-second timeout race
             await Promise.race([
                 (async () => {
-                    const { data: { user } } = await supabase.auth.getUser();
+                    // 2. Session Re-validation: Wake up connection and verify token
+                    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                    if (sessionError || !session) {
+                        // Try one refresh attempt if session is missing but we thought we were logged in
+                        const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+                        if (!refreshedSession) throw new Error("Session expired. Please log in again.");
+                    }
+
+                    setSaveStatus('Saving design...');
+                    const { data: { user } } = await supabase.auth.getUser(); // Double check user
                     if (!user) throw new Error("Login required.");
 
                     let currentProfileId = profileId;
