@@ -15,9 +15,7 @@ import { getPreferredPreviewMode, setPreferredPreviewMode } from '../utils/devic
 declare const QRCodeStyling: any;
 
 const initialFrontData: CardFaceData = {
-    texts: [
-        { id: 'name', content: 'Your Name', x: 50, y: 50, scale: 1, color: '#d7ba52', fontWeight: '700', fontFamily: 'Poppins', isLocked: false, fontSize: 36, letterSpacing: 0.05, textAlign: 'center' },
-    ],
+    texts: [],
     images: [
         { id: 'logo', url: null, x: 50, y: 65, scale: 1, width: 112, height: 112 },
         { id: 'qr', url: 'https://quickchart.io/qr?text=https://canopycorp.in&size=300&dark=d7ba52&light=00000000&margin=0', x: 10, y: 85, scale: 1, width: 64, height: 64 },
@@ -412,13 +410,13 @@ const CardDesignerPage: React.FC = () => {
         const dataUrl = await Promise.race([
             htmlToImage.toPng(element, {
                 fontEmbedCss: fontsEmbedCss,
-                pixelRatio: 1.5, // Reduced from 2 for faster generation
+                pixelRatio: 6, // Increased to 6 for ~600 DPI quality
                 cacheBust: false,
                 width: CARD_WIDTH,
                 height: CARD_HEIGHT,
                 backgroundColor: null
             }),
-            new Promise<string>((_, reject) => setTimeout(() => reject(new Error("Image generation timed out")), 10000))
+            new Promise<string>((_, reject) => setTimeout(() => reject(new Error("Image generation timed out")), 30000)) // Extended timeout
         ]);
 
         const blob = dataURLtoBlob(dataUrl);

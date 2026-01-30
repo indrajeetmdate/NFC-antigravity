@@ -8,8 +8,8 @@ import { useToast } from '../context/ToastContext';
 
 const PaymentPage: React.FC = () => {
     // Optimization: Use context data directly instead of fetching again
-    const { profile, loading: profileLoading } = useProfile();
-    
+    const { profile, loading: profileLoading, refreshProfile } = useProfile();
+
     // Local state for payment specific interactions
     const [upiId, setUpiId] = useState('');
     const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -17,7 +17,7 @@ const PaymentPage: React.FC = () => {
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [gettingLocation, setGettingLocation] = useState(false);
     const [couponCode, setCouponCode] = useState('');
-    
+
     const navigate = useNavigate();
     const { showToast } = useToast();
 
@@ -38,7 +38,7 @@ const PaymentPage: React.FC = () => {
             }
         }
     }, [profile, profileLoading, navigate, showToast]);
-    
+
     // Check various coupon states
     const isLoyaltyApplied = couponCode.trim().toUpperCase() === 'LOYALTYCARD' && upiId === '111111111111';
     const isNoFeesApplied = couponCode.trim().toUpperCase() === 'NOFEES' && upiId === '222222222222';
@@ -48,10 +48,10 @@ const PaymentPage: React.FC = () => {
         if (isCouponApplied) return;
         const value = e.target.value.replace(/\D/g, ''); // Allow only digits
         if (value.length <= 12) {
-          setUpiId(value);
+            setUpiId(value);
         }
     };
-    
+
     const handleApplyCoupon = async () => {
         const code = couponCode.trim().toUpperCase();
         if (!profile) return;
@@ -61,7 +61,7 @@ const PaymentPage: React.FC = () => {
                 // Automatically update the back side image for loyalty card holders
                 const { error } = await supabase
                     .from('profiles')
-                    .update({ 
+                    .update({
                         back_side: 'https://jotjgsgadnwosofaonso.supabase.co/storage/v1/object/public/card_images/Loyalty_back_side.png',
                         updated_at: new Date().toISOString()
                     })
@@ -101,8 +101,8 @@ const PaymentPage: React.FC = () => {
                 const { latitude, longitude } = position.coords;
                 const locationString = `Current Location: https://maps.google.com/?q=${latitude},${longitude}`;
                 setDeliveryAddress((prev) => {
-                   const sep = prev.trim() ? '\n\n' : '';
-                   return prev + sep + locationString; 
+                    const sep = prev.trim() ? '\n\n' : '';
+                    return prev + sep + locationString;
                 });
                 setGettingLocation(false);
                 showToast('Location fetched successfully', 'success');
@@ -118,38 +118,42 @@ const PaymentPage: React.FC = () => {
     const handleUpiSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!upiId.trim() || upiId.trim().length !== 12 || !profile || !deliveryAddress.trim()) return;
-    
+
         setIsSubmittingUpi(true);
         try {
-          // Use RPC call to submit payment and address
-          const { error } = await supabase.rpc('submit_payment', {
-            profile_id: profile.id,
-            upi_id: upiId.trim(),
-            address_url: deliveryAddress.trim() 
-          });
-    
-          if (error) throw error;
-    
-          setUpiId('');
-          setShowFeedbackModal(true);
-          
+            // Use RPC call to submit payment and address
+            const { error } = await supabase.rpc('submit_payment', {
+                profile_id: profile.id,
+                upi_id: upiId.trim(),
+                address_url: deliveryAddress.trim()
+            });
+
+            if (error) throw error;
+
+            setUpiId('');
+
+            // Refresh profile immediately to update dashboard status
+            await refreshProfile();
+
+            setShowFeedbackModal(true);
+
         } catch (err: any) {
-          console.error("Error submitting payment:", err);
-           if (err.message && err.message.includes('Webhook notification to Make.com failed')) {
+            console.error("Error submitting payment:", err);
+            if (err.message && err.message.includes('Webhook notification to Make.com failed')) {
                 showToast(`Webhook Error: ${err.message}`, 'error');
             } else {
                 showToast(`Failed to submit: ${err.message}`, 'error');
             }
         } finally {
-          setIsSubmittingUpi(false);
+            setIsSubmittingUpi(false);
         }
     };
 
     if (profileLoading) {
         return (
-          <div className="max-w-7xl mx-auto p-8 flex justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold"></div>
-          </div>
+            <div className="max-w-7xl mx-auto p-8 flex justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold"></div>
+            </div>
         );
     }
 
@@ -170,8 +174,8 @@ const PaymentPage: React.FC = () => {
                     </div>
 
                     <FeedbackForm onSuccess={() => navigate('/dashboard')} variant="full" />
-                    
-                    <button 
+
+                    <button
                         onClick={() => navigate('/dashboard')}
                         className="mt-4 w-full py-2 text-sm text-zinc-500 hover:text-white transition-colors"
                     >
@@ -194,15 +198,15 @@ const PaymentPage: React.FC = () => {
                     {/* Left Column: Payment (Scan & Amount) */}
                     <div className="lg:col-span-5 bg-zinc-950/50 p-8 flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-zinc-800 relative">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gold to-transparent opacity-50"></div>
-                        
+
                         <div className="bg-white p-4 rounded-xl shadow-lg shadow-black/50 mb-6 transform transition-transform hover:scale-105 duration-300">
-                            <img 
-                                src="https://jotjgsgadnwosofaonso.supabase.co/storage/v1/object/public/card_images/CC_Payment_549.png" 
-                                alt="Scan to Pay QR Code" 
+                            <img
+                                src="https://jotjgsgadnwosofaonso.supabase.co/storage/v1/object/public/card_images/CC_Payment_549.png"
+                                alt="Scan to Pay QR Code"
                                 className="w-48 h-48 object-contain"
                             />
                         </div>
-                        
+
                         <div className="text-center mb-6">
                             <div className="inline-block mb-2 px-3 py-1 bg-gold/10 rounded-full border border-gold/30">
                                 <span className="text-xs font-bold text-gold uppercase tracking-wider">Promotional Offer</span>
@@ -214,7 +218,7 @@ const PaymentPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <a 
+                        <a
                             href="upi://pay?pa=canopycorp@ybl&pn=CANOPY%20CORP&cu=INR&am=549"
                             className="w-full max-w-xs bg-zinc-800 hover:bg-zinc-700 text-white py-3 px-4 rounded-lg border border-zinc-700 transition-all duration-200 flex items-center justify-center gap-3 group"
                         >
@@ -230,12 +234,12 @@ const PaymentPage: React.FC = () => {
                     {/* Right Column: Details Form */}
                     <div className="lg:col-span-7 p-8 flex flex-col justify-center">
                         <form onSubmit={handleUpiSubmit} className="space-y-6">
-                            
+
                             {/* Coupon Section */}
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-zinc-400">Have a Coupon Code?</label>
                                 <div className="flex gap-2">
-                                    <input 
+                                    <input
                                         type="text"
                                         value={couponCode}
                                         onChange={(e) => setCouponCode(e.target.value)}
@@ -244,7 +248,7 @@ const PaymentPage: React.FC = () => {
                                         className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-600 focus:ring-2 focus:ring-gold/50 focus:border-gold transition-all disabled:opacity-50 uppercase"
                                     />
                                     {isCouponApplied ? (
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={handleRemoveCoupon}
                                             className="px-4 py-2 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition-colors"
@@ -252,7 +256,7 @@ const PaymentPage: React.FC = () => {
                                             Remove
                                         </button>
                                     ) : (
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={handleApplyCoupon}
                                             disabled={!couponCode.trim()}
@@ -279,6 +283,15 @@ const PaymentPage: React.FC = () => {
                                     </p>
                                 )}
                             </div>
+
+                            {/* Loyalty Card Note */}
+                            {isLoyaltyApplied && (
+                                <div className="mt-2 p-3 bg-zinc-900/80 border border-zinc-700/50 rounded-lg">
+                                    <p className="text-xs text-zinc-400">
+                                        <span className="text-gold font-bold">Note:</span> Loyalty card members back side card design is fixed.
+                                    </p>
+                                </div>
+                            )}
 
                             <div className="w-full h-px bg-zinc-800 my-6"></div>
 
