@@ -154,6 +154,39 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         setMode('TOOLS');
     };
 
+    const handleThemeColorChange = (color: string) => {
+        // 1. Update NFC Icon and Branding Text Color (for back side)
+        setCardData(prev => ({
+            ...prev,
+            nfcIconColor: color,
+            urlColor: color
+        }));
+
+        // 2. Regenerate QR Code if it exists (for AI generated ones using QuickChart)
+        setCardData(prev => {
+            const qrImage = prev.images.find(i => i.id === 'qr');
+            if (!qrImage) return prev;
+
+            let newUrl = qrImage.url;
+            try {
+                // Check if it's a QuickChart URL (AI generated)
+                if (newUrl.includes('quickchart.io')) {
+                    const urlObj = new URL(newUrl);
+                    // Update 'dark' parameter with new color (remove hash)
+                    urlObj.searchParams.set('dark', color.replace('#', ''));
+                    newUrl = urlObj.toString();
+                }
+            } catch (e) {
+                console.warn("Could not update QR color:", e);
+            }
+
+            return {
+                ...prev,
+                images: prev.images.map(i => i.id === 'qr' ? { ...i, url: newUrl } : i)
+            };
+        });
+    };
+
     const handleDelete = () => {
         if (!selectedElement) return;
         if (selectedElement.type === 'text') setCardData(prev => ({ ...prev, texts: prev.texts.filter(t => t.id !== selectedElement.id) }));
@@ -289,22 +322,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-4">
-                            <div className="space-y-1">
-                                <span className="text-[10px] text-zinc-400 uppercase font-bold">NFC Icon Color</span>
-                                <input type="color" value={activeCardData.nfcIconColor} onChange={(e) => setCardData(p => ({ ...p, nfcIconColor: e.target.value }))} className="w-full h-8 rounded border border-zinc-700 cursor-pointer bg-transparent p-0" />
-                            </div>
-
-                            {activeSide === 'back' && (
-                                <div className="space-y-1">
-                                    <span className="text-[10px] text-zinc-400 uppercase font-bold">Branding Color</span>
-                                    <input
-                                        type="color"
-                                        value={activeCardData.urlColor || activeCardData.nfcIconColor}
-                                        onChange={(e) => setCardData(p => ({ ...p, urlColor: e.target.value }))}
-                                        className="w-full h-8 rounded border border-zinc-700 cursor-pointer bg-transparent p-0"
-                                    />
+                            <div className="space-y-4">
+                                <div className="p-3 bg-zinc-800/50 rounded border border-zinc-700/50">
+                                    <p className="text-[10px] text-zinc-400 leading-relaxed">
+                                        Use the <span className="text-gold font-bold">Theme Color</span> on the Home screen to update NFC Icon, Branding, and QR Code colors simultaneously.
+                                    </p>
                                 </div>
-                            )}
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <span className="text-[10px] text-zinc-400 uppercase font-bold">Quick Actions</span>
@@ -395,38 +419,60 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
         // HOME View
         return (
-            <div className={`grid grid-cols-2 gap-4 p-4 ${editorHeightClass} items-center`}>
-                <button
-                    onClick={() => setMode('TOOLS')}
-                    className="flex flex-col items-center justify-center gap-3 bg-zinc-800 p-6 rounded-xl border border-zinc-700 hover:border-gold hover:bg-zinc-700 transition-all group shadow-md"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400 group-hover:text-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                    <span className="text-sm font-bold text-white group-hover:text-gold uppercase tracking-wider">Design Your Own</span>
-                </button>
-                <button
-                    onClick={onTriggerUpload}
-                    className="flex flex-col items-center justify-center gap-3 bg-zinc-800 p-6 rounded-xl border border-zinc-700 hover:border-gold hover:bg-zinc-700 transition-all group shadow-md"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400 group-hover:text-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    <span className="text-sm font-bold text-white group-hover:text-gold uppercase tracking-wider">Upload Design</span>
-                </button>
+            <div className={`flex flex-col gap-4 p-4 ${editorHeightClass} justify-center`}>
+                <div className="grid grid-cols-2 gap-4">
+                    <button
+                        onClick={() => setMode('TOOLS')}
+                        className="flex flex-col items-center justify-center gap-3 bg-zinc-800 p-6 rounded-xl border border-zinc-700 hover:border-gold hover:bg-zinc-700 transition-all group shadow-md"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400 group-hover:text-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        <span className="text-sm font-bold text-white group-hover:text-gold uppercase tracking-wider">Design Your Own</span>
+                    </button>
+                    <button
+                        onClick={onTriggerUpload}
+                        className="flex flex-col items-center justify-center gap-3 bg-zinc-800 p-6 rounded-xl border border-zinc-700 hover:border-gold hover:bg-zinc-700 transition-all group shadow-md"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400 group-hover:text-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        <span className="text-sm font-bold text-white group-hover:text-gold uppercase tracking-wider">Upload Design</span>
+                    </button>
+                </div>
+
+                {/* Unified Theme Color Picker */}
+                <div className="bg-zinc-800/50 p-3 rounded-xl border border-zinc-700 flex items-center justify-between">
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-white">Theme Color</span>
+                        <span className="text-[10px] text-zinc-400">Updates QR, NFC Icon & Branding</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono text-zinc-500">{activeCardData.nfcIconColor}</span>
+                        <div className="relative group">
+                            <input
+                                type="color"
+                                value={activeCardData.nfcIconColor || '#ffffff'}
+                                onChange={(e) => handleThemeColorChange(e.target.value)}
+                                className="w-10 h-10 rounded-lg border-2 border-zinc-600 cursor-pointer bg-transparent p-0 appearance-none overflow-hidden"
+                            />
+                            <div className="absolute inset-0 pointer-events-none rounded-lg ring-2 ring-transparent group-hover:ring-gold transition-all"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     };
 
     return (
         <div className="w-full bg-zinc-900 border-b border-zinc-800 p-2">
-            <div className="flex justify-between items-center px-4 mb-3 pt-2 border-b border-zinc-800 pb-2">
-                <div className="flex bg-zinc-800 rounded-lg p-0.5 shadow-inner">
-                    <button onClick={() => setCardType('business_card')} className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${cardType === 'business_card' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Card</button>
-                    <button onClick={() => setCardType('standie')} className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${cardType === 'standie' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Standie</button>
+            <div className="flex justify-between items-center px-2 mb-2 pt-1 border-b border-zinc-800 pb-2 overflow-x-auto scrollbar-hide gap-2">
+                <div className="flex bg-zinc-800 rounded-lg p-0.5 shadow-inner flex-shrink-0">
+                    <button onClick={() => setCardType('business_card')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'business_card' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Card</button>
+                    <button onClick={() => setCardType('standie')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'standie' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Standie</button>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-shrink-0">
                     {/* AI Generate Button (New) */}
                     <button
                         onClick={onAiGenerate}
