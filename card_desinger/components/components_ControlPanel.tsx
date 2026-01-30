@@ -170,7 +170,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             let newUrl = qrImage.url;
             try {
                 // Check if it's a QuickChart URL (AI generated)
-                if (newUrl.includes('quickchart.io')) {
+                if (newUrl && newUrl.includes('quickchart.io')) {
                     const urlObj = new URL(newUrl);
                     // Update 'dark' parameter with new color (remove hash)
                     urlObj.searchParams.set('dark', color.replace('#', ''));
