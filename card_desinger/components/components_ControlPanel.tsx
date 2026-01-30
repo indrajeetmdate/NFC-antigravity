@@ -189,6 +189,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
     const handleDelete = () => {
         if (!selectedElement) return;
+
+        // Prevent deletion of mandatory QR code
+        if (selectedElement.id === 'qr') {
+            // Optional: You could show a toast here if you had access to showToast
+            return;
+        }
+
         if (selectedElement.type === 'text') setCardData(prev => ({ ...prev, texts: prev.texts.filter(t => t.id !== selectedElement.id) }));
         else setCardData(prev => ({ ...prev, images: prev.images.filter(i => i.id !== selectedElement.id) }));
         onDeselect();
@@ -437,7 +444,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400 group-hover:text-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                         </svg>
-                        <span className="text-sm font-bold text-white group-hover:text-gold uppercase tracking-wider">Upload Design</span>
+                        <span className="text-sm font-bold text-white group-hover:text-gold uppercase tracking-wider">Upload existing card</span>
                     </button>
                 </div>
 
