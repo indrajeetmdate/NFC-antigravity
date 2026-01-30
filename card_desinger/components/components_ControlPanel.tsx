@@ -437,6 +437,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 6 6.5 9.5 3 12l3.5 2.5L9 18l2.5-3.5L15 12l-3.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z" />
                         </svg>
                         <span className="hidden sm:inline">AI Magic</span>
+                        <span className="sm:hidden">AI</span>
                         <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider">Beta</span>
                     </button>
 
@@ -453,13 +454,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 {saveStatus || 'Saving...'}
                             </div>
                         ) : (
-                            <button
-                                onClick={() => onSave()}
-                                className="bg-zinc-800 text-white border border-zinc-600 px-4 py-1.5 rounded-md text-[10px] font-bold hover:bg-zinc-700 hover:border-gold transition-all shadow-sm"
-                                title="Save Design (Front & Back)"
-                            >
-                                Save Design
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => onSave()}
+                                    className="bg-green-600 text-white border border-green-500 px-4 py-1.5 rounded-md text-[10px] font-bold hover:bg-green-500 hover:border-green-400 transition-all shadow-sm flex items-center gap-1"
+                                    title="Save Design & Continue"
+                                >
+                                    <span>Save & Continue</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>

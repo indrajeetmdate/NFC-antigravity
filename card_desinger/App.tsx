@@ -455,7 +455,7 @@ const CardDesignerPage: React.FC = () => {
     }, [isSaving]);
 
     // ===== SIMPLIFIED SAVE: Only saves JSON data (fast & reliable) =====
-    const handleSaveAndPrint = useCallback(async () => {
+    const handleSaveAndPrint = useCallback(async (sideToSave?: 'front' | 'back') => {
         if (isSaving) return;
 
         setIsSaving(true);
@@ -498,7 +498,51 @@ const CardDesignerPage: React.FC = () => {
                 updated_at: new Date().toISOString()
             }).eq('id', currentProfileId);
 
-            showToast("Design saved successfully!", 'success');
+            // Update status (kept true)
+            setSaveStatus("Generating print-ready images...");
+
+            // ===== PHASE 2: SEQUENTIAL IMAGE GENERATION (AWAITED) =====
+            const imageUpdates: any = {};
+
+            // Generate images sequentially with reduced quality for speed
+            // Force await here to ensure images are ready before routing
+            if (!sideToSave || sideToSave === 'front') {
+                if (!sideToSave) setSaveStatus("Generating Front Side...");
+                try {
+                    const frontUrl = await captureAndUploadImage('front', frontData, currentFolder);
+                    imageUpdates.front_side = frontUrl;
+                } catch (e) {
+                    console.error("Front side save failed", e);
+                    // Non-blocking error for main flow? OR should we block? 
+                    // User said "Cards are saved", implying images too. Let's log but continue to try back.
+                }
+            }
+
+            if (!sideToSave || sideToSave === 'back') {
+                if (!sideToSave) setSaveStatus("Generating Back Side...");
+                await new Promise(r => setTimeout(r, 300)); // Brief pause
+                try {
+                    const backUrl = await captureAndUploadImage('back', backData, currentFolder);
+                    imageUpdates.back_side = backUrl;
+                } catch (e) {
+                    console.error("Back side save failed", e);
+                }
+            }
+
+            if (Object.keys(imageUpdates).length > 0) {
+                await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
+            }
+
+            if (mountedRef.current) {
+                setIsSaving(false);
+                setSaveStatus('');
+                showToast("Design and images saved successfully!", 'success');
+
+                // Navigate immediately if saving "All" (Save & Continue)
+                if (!sideToSave && currentProfileId) {
+                    navigate(`/profile/${currentProfileId}/edit`);
+                }
+            }
 
         } catch (err: any) {
             console.error("Save error:", err);

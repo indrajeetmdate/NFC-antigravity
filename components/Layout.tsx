@@ -105,7 +105,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {isWorkflowPage && profile && (
+      {isWorkflowPage && (
         <div className="sticky top-[64px] md:top-[80px] z-40 bg-zinc-950/90 backdrop-blur-sm border-b border-zinc-800 shadow-md">
           <div className="max-w-5xl mx-auto flex items-center justify-between px-2 sm:px-4">
             <button
