@@ -173,9 +173,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // Tab became visible after suspension - mark as reconnecting
         setIsReconnecting(true);
       }
-    },
-    debounceMs: 300,
-    timeoutMs: 5000
+    }
   });
 
   const refreshProfile = useCallback(async () => {

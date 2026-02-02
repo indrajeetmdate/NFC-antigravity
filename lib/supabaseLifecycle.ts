@@ -3,174 +3,160 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase, recreateSupabase, onSupabaseRecreated } from './supabase';
 
 interface SupabaseLifecycleOptions {
-    /** Called when client is recreated with valid session after tab becomes visible */
+    /** Called when client is recreated with valid session after returning from background */
     onClientRecreated?: (client: SupabaseClient, session: Session) => void | Promise<void>;
     /** Called when session is not available after recreation (user logged out) */
     onSessionLost?: () => void;
     /** Called on any visibility change - useful for triggering saves */
     onVisibilityChange?: (isVisible: boolean) => void | Promise<void>;
-    /** Debounce delay in ms (default: 300) */
-    debounceMs?: number;
-    /** Timeout for session check in ms (default: 5000) */
-    timeoutMs?: number;
 }
 
 interface SupabaseLifecycleReturn {
     /** Whether a recovery is currently in progress */
     isRecovering: boolean;
-    /** Force a full client recreation */
-    forceRecreate: () => Promise<SupabaseClient>;
 }
 
 /**
- * Hook to manage full Supabase client recovery on browser tab switches.
+ * Global state to track visibility and prevent recreation while visible.
+ * This ensures NO component can trigger recreation while the tab is active.
+ */
+let wasHidden = false;
+let isRecreating = false;
+let hasRecreatedThisResume = false;
+
+/**
+ * Hook to manage Supabase client recovery ONLY on actual browser lifecycle events.
  * 
- * When a tab is backgrounded, browsers suspend WebSocket connections.
- * This hook RECREATES the Supabase client on tab reactivation to ensure
- * all database writes, reads, and realtime subscriptions work immediately.
- * 
- * Key differences from simple session refresh:
- * - Removes all stale realtime channels
- * - Creates a FRESH client instance
- * - Lets client rehydrate from localStorage (no refreshSession call)
- * - Notifies components to re-subscribe to realtime/auth
+ * CRITICAL RULES:
+ * 1. Client is NEVER recreated while document.visibilityState === "visible"
+ * 2. Client is ONLY recreated on transition from hidden → visible
+ * 3. Single-flight guard ensures only one recreation per resume event
+ * 4. No time-based or inactivity heuristics
  */
 export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): SupabaseLifecycleReturn {
     const {
         onClientRecreated,
         onSessionLost,
-        onVisibilityChange,
-        debounceMs = 300,
-        timeoutMs = 5000
+        onVisibilityChange
     } = options;
 
     const isRecoveringRef = useRef(false);
-    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mountedRef = useRef(true);
-    const lastVisibilityTimestampRef = useRef<number>(Date.now());
 
-    // Force recreate the Supabase client
-    const forceRecreate = useCallback(async (): Promise<SupabaseClient> => {
-        if (isRecoveringRef.current) {
-            console.log('[SupabaseLifecycle] Recovery already in progress, skipping...');
-            return getSupabase();
-        }
+    // Handle visibility change - ONLY recreate on hidden → visible transition
+    useEffect(() => {
+        mountedRef.current = true;
 
-        isRecoveringRef.current = true;
+        const handleVisibilityChange = async () => {
+            const isVisible = document.visibilityState === 'visible';
 
-        try {
-            // Create timeout promise for the entire operation
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Client recreation timeout')), timeoutMs);
-            });
+            // Always notify about visibility changes (for pending saves etc)
+            onVisibilityChange?.(isVisible);
 
-            // Recreate the client (removes channels, creates fresh instance)
-            const recreatePromise = (async () => {
+            if (!isVisible) {
+                // Tab going hidden - mark for potential recreation on return
+                wasHidden = true;
+                hasRecreatedThisResume = false;
+                console.log('[SupabaseLifecycle] Tab hidden - marking for recreation on return');
+                return;
+            }
+
+            // Tab becoming visible
+            // CRITICAL: Only recreate if we were actually hidden AND haven't already recreated
+            if (!wasHidden || hasRecreatedThisResume) {
+                console.log('[SupabaseLifecycle] Tab visible (no recreation needed - was not hidden or already recreated)');
+                return;
+            }
+
+            // CRITICAL: Single-flight guard - prevent concurrent recreation
+            if (isRecreating) {
+                console.log('[SupabaseLifecycle] Recreation already in progress, skipping...');
+                return;
+            }
+
+            console.log('[SupabaseLifecycle] Tab returned from hidden state - recreating client');
+
+            // Mark that we're handling this resume event
+            isRecreating = true;
+            isRecoveringRef.current = true;
+            hasRecreatedThisResume = true;
+            wasHidden = false;
+
+            try {
                 const newClient = await recreateSupabase();
 
-                // Get session from NEW client (rehydrates from localStorage)
+                if (!mountedRef.current) return;
+
+                // Get session from fresh client
                 const { data: { session }, error } = await newClient.auth.getSession();
 
-                if (!mountedRef.current) return newClient;
+                if (!mountedRef.current) return;
 
                 if (error) {
                     console.warn('[SupabaseLifecycle] Session check error after recreation:', error.message);
                     onSessionLost?.();
-                    return newClient;
-                }
-
-                if (session) {
+                } else if (session) {
                     console.log('[SupabaseLifecycle] Client recreated with valid session');
                     await onClientRecreated?.(newClient, session);
                 } else {
                     console.log('[SupabaseLifecycle] Client recreated but no session (user logged out)');
                     onSessionLost?.();
                 }
-
-                return newClient;
-            })();
-
-            return await Promise.race([recreatePromise, timeoutPromise]);
-
-        } catch (err: any) {
-            if (err.message === 'Client recreation timeout') {
-                console.warn('[SupabaseLifecycle] Client recreation timed out');
-            } else {
+            } catch (err) {
                 console.error('[SupabaseLifecycle] Client recreation error:', err);
+            } finally {
+                isRecreating = false;
+                isRecoveringRef.current = false;
             }
-            return getSupabase();
-        } finally {
-            isRecoveringRef.current = false;
-        }
-    }, [onClientRecreated, onSessionLost, timeoutMs]);
-
-    // Handle visibility change
-    useEffect(() => {
-        mountedRef.current = true;
-
-        const handleVisibilityChange = async () => {
-            const isVisible = document.visibilityState === 'visible';
-            const now = Date.now();
-
-            // Always notify about visibility changes
-            onVisibilityChange?.(isVisible);
-
-            if (!isVisible) {
-                // Tab going inactive - record timestamp and clear debounce
-                lastVisibilityTimestampRef.current = now;
-                if (debounceTimerRef.current) {
-                    clearTimeout(debounceTimerRef.current);
-                    debounceTimerRef.current = null;
-                }
-                return;
-            }
-
-            // Tab becoming visible - check how long we were away
-            const timeSuspended = now - lastVisibilityTimestampRef.current;
-
-            // Only recreate if tab was suspended for more than 5 seconds
-            // Short switches don't need full recreation
-            if (timeSuspended < 5000) {
-                console.log(`[SupabaseLifecycle] Tab visible after ${timeSuspended}ms (quick switch, skipping recreation)`);
-                return;
-            }
-
-            console.log(`[SupabaseLifecycle] Tab visible after ${timeSuspended}ms suspension, initiating recovery...`);
-
-            // Debounce the recreation
-            if (debounceTimerRef.current) {
-                clearTimeout(debounceTimerRef.current);
-            }
-
-            debounceTimerRef.current = setTimeout(async () => {
-                if (!mountedRef.current) return;
-                await forceRecreate();
-            }, debounceMs);
         };
 
-        // Also handle focus events
-        const handleFocus = () => {
-            if (document.visibilityState === 'visible') {
-                handleVisibilityChange();
+        // Handle online event - treat as return from suspension
+        const handleOnline = async () => {
+            if (document.visibilityState !== 'visible') return;
+
+            // Only recreate if we haven't already for this session
+            if (isRecreating || hasRecreatedThisResume) return;
+
+            console.log('[SupabaseLifecycle] Network restored - recreating client');
+
+            isRecreating = true;
+            isRecoveringRef.current = true;
+            hasRecreatedThisResume = true;
+
+            try {
+                const newClient = await recreateSupabase();
+                if (!mountedRef.current) return;
+
+                const { data: { session }, error } = await newClient.auth.getSession();
+                if (!mountedRef.current) return;
+
+                if (error) {
+                    onSessionLost?.();
+                } else if (session) {
+                    await onClientRecreated?.(newClient, session);
+                } else {
+                    onSessionLost?.();
+                }
+            } catch (err) {
+                console.error('[SupabaseLifecycle] Online recovery error:', err);
+            } finally {
+                isRecreating = false;
+                isRecoveringRef.current = false;
             }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('focus', handleFocus);
+        window.addEventListener('online', handleOnline);
 
         return () => {
             mountedRef.current = false;
-            if (debounceTimerRef.current) {
-                clearTimeout(debounceTimerRef.current);
-            }
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('online', handleOnline);
         };
-    }, [forceRecreate, onVisibilityChange, debounceMs]);
+    }, [onClientRecreated, onSessionLost, onVisibilityChange]);
 
     return {
-        isRecovering: isRecoveringRef.current,
-        forceRecreate
+        isRecovering: isRecoveringRef.current
     };
 }
 
