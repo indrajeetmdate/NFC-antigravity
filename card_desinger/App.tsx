@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js';
 import BusinessCard from './components/components_BusinessCard';
 import ControlPanel from './components/components_ControlPanel';
 import AiGeneratorModal from './components/components_AiGeneratorModal';
+import BottomEditBar from './components/BottomEditBar';
 import type { CardFaceData, ImageElement, TextElement } from '../types';
 import { supabase } from '../lib/supabase';
 import { BUCKET_CARD_IMAGES } from '../constants';
@@ -581,8 +582,6 @@ const CardDesignerPage: React.FC = () => {
                     cardType={cardType}
                     setCardType={setCardType}
                     onReset={handleReset}
-                    onAiGenerate={() => setAiModalOpen(true)}
-                    onTriggerUpload={() => uploadDesignRef.current?.click()}
                 />
             </div>
 
@@ -664,6 +663,34 @@ const CardDesignerPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Bottom Edit Bar */}
+            <BottomEditBar
+                onDesignYourOwn={() => { }}
+                onUploadDesign={() => uploadDesignRef.current?.click()}
+                onAiGenerate={() => setAiModalOpen(true)}
+                themeColor={activeData.nfcIconColor || '#d7ba52'}
+                onThemeColorChange={(color) => {
+                    setActiveData(prev => ({
+                        ...prev,
+                        nfcIconColor: color,
+                        urlColor: color
+                    }));
+                    // Update QR code color if it's a QuickChart URL
+                    setActiveData(prev => {
+                        const qrImage = prev.images.find(i => i.id === 'qr');
+                        if (!qrImage?.url?.includes('quickchart.io')) return prev;
+                        try {
+                            const urlObj = new URL(qrImage.url);
+                            urlObj.searchParams.set('dark', color.replace('#', ''));
+                            return {
+                                ...prev,
+                                images: prev.images.map(i => i.id === 'qr' ? { ...i, url: urlObj.toString() } : i)
+                            };
+                        } catch { return prev; }
+                    });
+                }}
+            />
         </div>
     );
 };
