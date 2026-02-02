@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { useSupabaseLifecycle } from '../lib/supabaseLifecycle';
 import { Profile } from '../types';
 
 interface ProfileContextType {
@@ -9,6 +10,7 @@ interface ProfileContextType {
   session: Session | null;
   loading: boolean;
   error: Error | null;
+  isReconnecting: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -20,6 +22,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const mounted = useRef(true);
 
   // Fetch profile helper
@@ -109,83 +112,35 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [fetchProfile]);
 
-  // Handle Tab Visibility Changes (Fix for Background Throttling)
-  useEffect(() => {
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let isRefreshing = false;
+  // Handle Tab Visibility Changes with enhanced recovery using lifecycle hook
+  useSupabaseLifecycle({
+    onSessionRecovered: async (recoveredSession) => {
+      if (!mounted.current) return;
 
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState !== 'visible') return;
+      console.log('[ProfileContext] Session recovered, refreshing profile...');
+      setIsReconnecting(false);
+      setSession(recoveredSession);
 
-      // Prevent concurrent refreshes
-      if (isRefreshing) {
-        console.log("Session refresh already in progress, skipping...");
-        return;
+      // Re-fetch profile to ensure we have fresh data
+      await fetchProfile(recoveredSession);
+    },
+    onSessionLost: () => {
+      if (!mounted.current) return;
+
+      console.log('[ProfileContext] Session lost during recovery');
+      setIsReconnecting(false);
+      // Don't clear session here - let the auth state change handler deal with it
+      // This prevents flash of logged-out state if the session is actually still valid
+    },
+    onVisibilityChange: (isVisible) => {
+      if (isVisible && session) {
+        // Tab became visible - mark as reconnecting
+        setIsReconnecting(true);
       }
-
-      // Debounce rapid tab switches
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-      }
-
-      debounceTimer = setTimeout(async () => {
-        if (!mounted.current) return;
-
-        isRefreshing = true;
-
-        try {
-          // Set a timeout to prevent hanging
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error("Session refresh timeout")), 5000);
-          });
-
-          const sessionPromise = supabase.auth.getSession();
-
-          const { data: { session: currentSession }, error } = await Promise.race([
-            sessionPromise,
-            timeoutPromise
-          ]) as Awaited<typeof sessionPromise>;
-
-          if (!mounted.current) return;
-
-          if (error) {
-            console.warn("Session check error:", error.message);
-            return;
-          }
-
-          // If session is stale or missing, try to refresh
-          if (!currentSession) {
-            const refreshPromise = supabase.auth.refreshSession();
-            const { data, error: refreshError } = await Promise.race([
-              refreshPromise,
-              timeoutPromise
-            ]) as Awaited<typeof refreshPromise>;
-
-            if (refreshError) {
-              console.warn("Session refresh failed:", refreshError.message);
-            } else if (data.session && mounted.current) {
-              setSession(data.session);
-            }
-          }
-        } catch (err: any) {
-          // Timeout or other error - don't freeze, just log
-          if (err.message !== "Session refresh timeout") {
-            console.error("Session recovery error:", err);
-          } else {
-            console.warn("Session refresh timed out - continuing without refresh");
-          }
-        } finally {
-          isRefreshing = false;
-        }
-      }, 300); // 300ms debounce
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
+    },
+    debounceMs: 300,
+    timeoutMs: 5000
+  });
 
   const refreshProfile = useCallback(async () => {
     if (session) {
@@ -208,7 +163,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   return (
-    <ProfileContext.Provider value={{ profile, session, loading, error, refreshProfile, signOut: handleSignOut }}>
+    <ProfileContext.Provider value={{ profile, session, loading, error, isReconnecting, refreshProfile, signOut: handleSignOut }}>
       {children}
     </ProfileContext.Provider>
   );

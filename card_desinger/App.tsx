@@ -8,6 +8,7 @@ import AiGeneratorModal from './components/components_AiGeneratorModal';
 import BottomEditBar from './components/BottomEditBar';
 import type { CardFaceData, ImageElement, TextElement } from '../types';
 import { supabase } from '../lib/supabase';
+import { useSupabaseLifecycle, validateSupabaseSession } from '../lib/supabaseLifecycle';
 import { BUCKET_CARD_IMAGES } from '../constants';
 import { useToast } from '../context/ToastContext';
 import PreviewModeToggle from '../components/PreviewModeToggle';
@@ -121,6 +122,7 @@ const CardDesignerPage: React.FC = () => {
     const backCardRef = useRef<HTMLDivElement>(null);
     const autoSaveTimerRef = useRef<number | null>(null);
     const mountedRef = useRef(true);
+    const hasPendingChanges = useRef(false);
 
     const getDimensions = useCallback(() => {
         if (cardType === 'standie') return { width: 400, height: 600 };
@@ -292,6 +294,9 @@ const CardDesignerPage: React.FC = () => {
     useEffect(() => {
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
 
+        // Mark that we have pending changes
+        hasPendingChanges.current = true;
+
         autoSaveTimerRef.current = window.setTimeout(async () => {
             if (profileId && mountedRef.current) {
                 await supabase.from('profiles').update({
@@ -299,11 +304,34 @@ const CardDesignerPage: React.FC = () => {
                     updated_at: new Date().toISOString()
                 }).eq('id', profileId);
                 console.log("Auto-saved design data");
+                hasPendingChanges.current = false;
             }
         }, 5000);
 
         return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
     }, [profileId, frontData, backData, cardType]);
+
+    // Visibility-aware autosave: sync pending changes when tab becomes visible
+    useSupabaseLifecycle({
+        onVisibilityChange: async (isVisible) => {
+            if (isVisible && hasPendingChanges.current && profileId) {
+                console.log('[CardDesigner] Tab visible - checking for pending changes to sync');
+                // Validate session before attempting save
+                const session = await validateSupabaseSession();
+                if (session && mountedRef.current) {
+                    console.log('[CardDesigner] Session valid - syncing pending changes');
+                    await supabase.from('profiles').update({
+                        design_data: { front: frontData, back: backData, type: cardType },
+                        updated_at: new Date().toISOString()
+                    }).eq('id', profileId);
+                    hasPendingChanges.current = false;
+                    console.log('[CardDesigner] Pending changes synced');
+                } else {
+                    console.warn('[CardDesigner] No valid session - skipping sync');
+                }
+            }
+        }
+    });
 
     const handleReset = useCallback(async () => {
         if (!window.confirm("Are you sure you want to reset the design to default? All changes will be lost.")) return;

@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useSupabaseLifecycle, validateSupabaseSession } from '../lib/supabaseLifecycle';
 import { Profile, ProfileUpdate, ProfileInsert, CustomButtonElement, ButtonStyle, BackgroundSettings } from '../types';
 import { BUCKET_BACKGROUND_PHOTOS, BUCKET_PROFILE_PHOTOS, BUCKET_CARD_IMAGES, FONTS, SHAPES, SOCIAL_ICONS } from '../constants';
 import { useToast } from '../context/ToastContext';
@@ -101,6 +102,7 @@ const ProfileEditor: React.FC = () => {
     const isSavingRef = useRef(false);
     const hasMounted = useRef(false);
     const mountedRef = useRef(true);
+    const hasPendingChanges = useRef(false);
 
     const initializedRef = useRef<string | null>(null);
 
@@ -412,9 +414,29 @@ const ProfileEditor: React.FC = () => {
         if (hasMounted.current && id) {
             if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
             debounceTimeout.current = window.setTimeout(() => handleSubmit(true), 3000);
+            // Mark that we have pending changes
+            hasPendingChanges.current = true;
         } else hasMounted.current = true;
         return () => { if (debounceTimeout.current) clearTimeout(debounceTimeout.current); };
     }, [formData, handleSubmit, id]);
+
+    // Visibility-aware autosave: sync pending changes when tab becomes visible
+    useSupabaseLifecycle({
+        onVisibilityChange: async (isVisible) => {
+            if (isVisible && hasPendingChanges.current && id) {
+                console.log('[ProfileEditor] Tab visible - checking for pending changes to sync');
+                // Validate session before attempting save
+                const session = await validateSupabaseSession();
+                if (session) {
+                    console.log('[ProfileEditor] Session valid - syncing pending changes');
+                    await handleSubmit(true);
+                    hasPendingChanges.current = false;
+                } else {
+                    console.warn('[ProfileEditor] No valid session - skipping sync');
+                }
+            }
+        }
+    });
 
     const IconButton = ({ icon, label, isActive, onClick }: any) => (
         <button
