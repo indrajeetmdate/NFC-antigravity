@@ -129,15 +129,15 @@ const CardDesignerPage: React.FC = () => {
 
     const { width: CARD_WIDTH, height: CARD_HEIGHT } = getDimensions();
 
-    const generateDefaultQr = useCallback(async (slug: string) => {
+    const generateDefaultQr = useCallback(async (slug: string, color: string = '#d7ba52') => {
         try {
             const profileUrl = `https://www.canopycorp.in/#/p/${slug}`;
             const qr = new QRCodeStyling({
                 width: 300, height: 300, data: profileUrl,
-                dotsOptions: { color: '#d7ba52', type: 'rounded' },
+                dotsOptions: { color, type: 'rounded' },
                 backgroundOptions: { color: 'transparent' },
-                cornersSquareOptions: { type: 'extra-rounded', color: '#d7ba52' },
-                cornersDotOptions: { type: 'dots', color: '#d7ba52' }
+                cornersSquareOptions: { type: 'extra-rounded', color },
+                cornersDotOptions: { type: 'dots', color }
             });
             const buffer = await qr.getRawData('png');
             if (buffer) {
@@ -152,6 +152,20 @@ const CardDesignerPage: React.FC = () => {
         } catch (e) { console.error(e); }
         return null;
     }, []);
+
+    // Regenerate QR with new color (for theme color change)
+    const handleRegenerateQr = useCallback(async (color: string) => {
+        if (!userProfile?.profile_slug) return;
+
+        const newQrUrl = await generateDefaultQr(userProfile.profile_slug, color);
+        if (newQrUrl) {
+            // Update QR on current side
+            setFrontData(prev => ({
+                ...prev,
+                images: prev.images.map(img => img.id === 'qr' ? { ...img, url: newQrUrl } : img)
+            }));
+        }
+    }, [userProfile, generateDefaultQr]);
 
     // Fetch Profile & Load Design
     useEffect(() => {
@@ -630,6 +644,7 @@ const CardDesignerPage: React.FC = () => {
                     onReset={handleReset}
                     onTriggerUpload={() => uploadDesignRef.current?.click()}
                     isDesignModeActive={isDesignModeActive}
+                    onRegenerateQr={handleRegenerateQr}
                 />
             </div>
 

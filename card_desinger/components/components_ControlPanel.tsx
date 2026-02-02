@@ -20,6 +20,7 @@ interface ControlPanelProps {
     onReset: () => void;
     onTriggerUpload: () => void;
     isDesignModeActive: boolean;
+    onRegenerateQr?: (color: string) => void; // Regenerate QR with new color
 }
 
 const uuid = () => Math.random().toString(36).substring(2, 9);
@@ -70,7 +71,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     setCardType,
     onReset,
     onTriggerUpload,
-    isDesignModeActive
+    isDesignModeActive,
+    onRegenerateQr
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [mode, setMode] = useState<Mode>('HOME');
@@ -162,28 +164,31 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             urlColor: color
         }));
 
-        // 2. Regenerate QR Code if it exists (for AI generated ones using QuickChart)
+        // 2. Regenerate QR Code with new color
         setCardData(prev => {
             const qrImage = prev.images.find(i => i.id === 'qr');
-            if (!qrImage) return prev;
+            if (!qrImage?.url) return prev;
 
-            let newUrl = qrImage.url;
-            try {
-                // Check if it's a QuickChart URL (AI generated)
-                if (newUrl && newUrl.includes('quickchart.io')) {
-                    const urlObj = new URL(newUrl);
-                    // Update 'dark' parameter with new color (remove hash)
+            // Check if it's a QuickChart URL (AI generated) - update URL params
+            if (qrImage.url.includes('quickchart.io')) {
+                try {
+                    const urlObj = new URL(qrImage.url);
                     urlObj.searchParams.set('dark', color.replace('#', ''));
-                    newUrl = urlObj.toString();
+                    return {
+                        ...prev,
+                        images: prev.images.map(i => i.id === 'qr' ? { ...i, url: urlObj.toString() } : i)
+                    };
+                } catch (e) {
+                    console.warn("Could not update QR color:", e);
                 }
-            } catch (e) {
-                console.warn("Could not update QR color:", e);
             }
 
-            return {
-                ...prev,
-                images: prev.images.map(i => i.id === 'qr' ? { ...i, url: newUrl } : i)
-            };
+            // For data URLs (auto-generated QRCodeStyling), trigger regeneration
+            if (qrImage.url.startsWith('data:') && onRegenerateQr) {
+                onRegenerateQr(color);
+            }
+
+            return prev;
         });
     };
 
