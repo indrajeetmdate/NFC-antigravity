@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { supabase } from '../../lib/supabase';
+import { getSupabase } from '../../lib/supabase';
 import { BUCKET_CARD_IMAGES, FONTS } from '../../constants';
 import { generateCardDesign } from '../../utils/aiService';
 import { useToast } from '../../context/ToastContext';
@@ -67,9 +67,9 @@ const AiGeneratorModal: React.FC<AiGeneratorModalProps> = ({ isOpen, onClose, on
             let uploadedLogoUrl = undefined;
             if (logoFile && userProfile?.id) {
                 const filePath = `temp_ai/${userProfile.id}/${Math.random().toString(36).substring(7)}.png`;
-                const { data: uploadData, error: uploadError } = await supabase.storage.from(BUCKET_CARD_IMAGES).upload(filePath, logoFile);
+                const { data: uploadData, error: uploadError } = await getSupabase().storage.from(BUCKET_CARD_IMAGES).upload(filePath, logoFile);
                 if (!uploadError) {
-                    const { data: { publicUrl } } = supabase.storage.from(BUCKET_CARD_IMAGES).getPublicUrl(filePath);
+                    const { data: { publicUrl } } = getSupabase().storage.from(BUCKET_CARD_IMAGES).getPublicUrl(filePath);
                     uploadedLogoUrl = publicUrl;
                 }
             }

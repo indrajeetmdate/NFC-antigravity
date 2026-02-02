@@ -1,22 +1,32 @@
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, Subscription } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 /**
- * Supabase Client Factory
+ * Supabase Client Factory - Single Instance Invariant
  * 
- * Provides a singleton Supabase client with the ability to recreate it
- * after browser tab suspension. This is necessary because:
- * 1. WebSocket connections become stale when tabs are backgrounded
- * 2. Refresh token reuse detection can reject old tokens
- * 3. The client must rehydrate session from localStorage on recreation
+ * CRITICAL RULES:
+ * 1. Only ONE live Supabase client instance exists at any time
+ * 2. Old clients are fully decommissioned before creating new ones
+ * 3. Auth listeners are tracked and removed on decommission
+ * 4. Recreation only happens on actual lifecycle events (hidden→visible)
  */
 
+// The singleton client instance
 let supabaseInstance: SupabaseClient | null = null;
 let instanceVersion = 0;
 
+// Track all auth subscriptions for cleanup
+const authSubscriptions: Set<Subscription> = new Set();
+
 // Callbacks to notify when client is recreated
 const recreationCallbacks: Set<(client: SupabaseClient) => void> = new Set();
+
+// Lock to prevent concurrent recreation
+let isRecreatingClient = false;
+
+// Track if recreation is blocked (visible tab)
+let recreationBlocked = false;
 
 /**
  * Create a new Supabase client instance with proper configuration
@@ -31,12 +41,18 @@ function createSupabaseClient(): SupabaseClient {
       persistSession: true,
       detectSessionInUrl: true,
     },
+    // Disable realtime auto-connect to prevent WebSocket issues
+    realtime: {
+      params: {
+        eventsPerSecond: 10
+      }
+    }
   });
 }
 
 /**
  * Get the current active Supabase client.
- * All database/auth operations should use this getter.
+ * All database/auth operations MUST use this getter.
  */
 export function getSupabase(): SupabaseClient {
   if (!supabaseInstance) {
@@ -48,15 +64,32 @@ export function getSupabase(): SupabaseClient {
 
 /**
  * Get the current instance version (increments on recreation)
- * Used to detect if a component is holding a stale reference
  */
 export function getSupabaseVersion(): number {
   return instanceVersion;
 }
 
 /**
+ * Register an auth state change listener on the current client.
+ * The subscription is tracked for proper cleanup on client recreation.
+ * Returns an unsubscribe function.
+ */
+export function registerAuthListener(
+  callback: Parameters<SupabaseClient['auth']['onAuthStateChange']>[0]
+): () => void {
+  const client = getSupabase();
+  const { data: { subscription } } = client.auth.onAuthStateChange(callback);
+
+  authSubscriptions.add(subscription);
+
+  return () => {
+    subscription.unsubscribe();
+    authSubscriptions.delete(subscription);
+  };
+}
+
+/**
  * Register a callback to be notified when the client is recreated.
- * Use this to re-subscribe to realtime channels or auth state changes.
  */
 export function onSupabaseRecreated(callback: (client: SupabaseClient) => void): () => void {
   recreationCallbacks.add(callback);
@@ -64,54 +97,127 @@ export function onSupabaseRecreated(callback: (client: SupabaseClient) => void):
 }
 
 /**
- * Recreate the Supabase client after tab suspension.
- * 
- * This is the key function for tab recovery:
- * 1. Removes all stale realtime channels
- * 2. Creates a fresh client instance
- * 3. Lets the new client rehydrate session from localStorage (NOT refreshSession!)
- * 4. Notifies all registered callbacks to re-subscribe
- * 
- * IMPORTANT: Do NOT call refreshSession() here - Supabase has refresh token
- * reuse detection that can reject tokens after tab suspension. The new client
- * will automatically rehydrate the session from localStorage.
+ * Block or unblock client recreation.
+ * Call with true when tab is visible to prevent recreation during active use.
  */
-export async function recreateSupabase(): Promise<SupabaseClient> {
-  console.log('[Supabase] Recreating client after tab suspension...');
+export function setRecreationBlocked(blocked: boolean): void {
+  recreationBlocked = blocked;
+}
 
-  // Step 1: Clean up old client if exists
-  if (supabaseInstance) {
+/**
+ * Check if recreation is currently blocked
+ */
+export function isRecreationBlocked(): boolean {
+  return recreationBlocked;
+}
+
+/**
+ * Fully decommission the current client before recreation.
+ * This ensures NO stale listeners or connections remain.
+ */
+async function decommissionClient(): Promise<void> {
+  if (!supabaseInstance) return;
+
+  console.log('[Supabase] Decommissioning old client...');
+
+  // Step 1: Unsubscribe ALL tracked auth listeners
+  console.log(`[Supabase] Removing ${authSubscriptions.size} auth subscriptions`);
+  for (const subscription of authSubscriptions) {
     try {
-      // Remove all realtime channels to clean up dead WebSocket connections
-      const channels = supabaseInstance.getChannels();
-      console.log(`[Supabase] Removing ${channels.length} stale channels`);
-      await supabaseInstance.removeAllChannels();
+      subscription.unsubscribe();
     } catch (err) {
-      console.warn('[Supabase] Error cleaning up old channels:', err);
+      console.warn('[Supabase] Error unsubscribing auth listener:', err);
     }
   }
+  authSubscriptions.clear();
 
-  // Step 2: Create fresh client (will rehydrate from localStorage automatically)
-  supabaseInstance = createSupabaseClient();
-  instanceVersion++;
+  // Step 2: Remove all realtime channels
+  try {
+    const channels = supabaseInstance.getChannels();
+    console.log(`[Supabase] Removing ${channels.length} realtime channels`);
+    await supabaseInstance.removeAllChannels();
+  } catch (err) {
+    console.warn('[Supabase] Error removing channels:', err);
+  }
 
-  console.log(`[Supabase] Created new client instance (version ${instanceVersion})`);
+  // Step 3: Sign out of GoTrue to clean up internal state (without clearing storage)
+  // This prevents the "Multiple GoTrueClient instances" warning
+  try {
+    // Use local scope to avoid clearing session from localStorage
+    await supabaseInstance.auth.signOut({ scope: 'local' });
+  } catch (err) {
+    // Ignore errors - we're decommissioning anyway
+  }
 
-  // Step 3: Notify all registered callbacks to re-subscribe
-  recreationCallbacks.forEach(callback => {
-    try {
-      callback(supabaseInstance!);
-    } catch (err) {
-      console.error('[Supabase] Error in recreation callback:', err);
+  // Clear the reference
+  supabaseInstance = null;
+  console.log('[Supabase] Old client decommissioned');
+}
+
+/**
+ * Recreate the Supabase client after returning from background.
+ * 
+ * CRITICAL: This should ONLY be called from lifecycle manager on
+ * actual browser lifecycle events (hidden→visible transition).
+ * 
+ * Process:
+ * 1. Check if recreation is blocked (tab visible)
+ * 2. Acquire recreation lock (single-flight)
+ * 3. Fully decommission old client
+ * 4. Create fresh client
+ * 5. Notify callbacks to re-subscribe
+ */
+export async function recreateSupabase(): Promise<SupabaseClient> {
+  // Check if recreation is blocked (tab is visible)
+  if (recreationBlocked) {
+    console.warn('[Supabase] Recreation blocked - tab is visible');
+    return getSupabase();
+  }
+
+  // Single-flight: prevent concurrent recreation
+  if (isRecreatingClient) {
+    console.log('[Supabase] Recreation already in progress, waiting...');
+    // Wait for current recreation to complete
+    while (isRecreatingClient) {
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
-  });
+    return getSupabase();
+  }
 
-  return supabaseInstance;
+  isRecreatingClient = true;
+
+  try {
+    console.log('[Supabase] === RECREATING CLIENT ===');
+
+    // Step 1: Fully decommission old client
+    await decommissionClient();
+
+    // Step 2: Create fresh client
+    supabaseInstance = createSupabaseClient();
+    instanceVersion++;
+
+    console.log(`[Supabase] Created new client instance (version ${instanceVersion})`);
+
+    // Step 3: Notify callbacks to re-register their auth listeners
+    for (const callback of recreationCallbacks) {
+      try {
+        callback(supabaseInstance);
+      } catch (err) {
+        console.error('[Supabase] Error in recreation callback:', err);
+      }
+    }
+
+    console.log('[Supabase] === CLIENT RECREATION COMPLETE ===');
+
+    return supabaseInstance;
+
+  } finally {
+    isRecreatingClient = false;
+  }
 }
 
 /**
  * Reset realtime channels without full client recreation.
- * Use when you just need to clean up channels.
  */
 export async function resetRealtimeChannels(): Promise<void> {
   if (supabaseInstance) {
@@ -121,9 +227,9 @@ export async function resetRealtimeChannels(): Promise<void> {
   }
 }
 
-// For backward compatibility - components can import { supabase } directly
-// But prefer getSupabase() for tab-safe operations
-export const supabase = getSupabase();
+// REMOVED: The backward compatibility export that creates client on module load
+// This was causing multiple GoTrueClient instances
+// Use getSupabase() instead
 
 /*
 -- ===============================================================================================

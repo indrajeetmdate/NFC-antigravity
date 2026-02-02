@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Options, FileExtension, DotType, CornerSquareType, CornerDotType } from '../../custom_qr/types';
 import { DOT_TYPES, CORNER_SQUARE_TYPES, CORNER_DOT_TYPES } from '../../custom_qr/constants';
-import { supabase } from '../../lib/supabase';
+import { getSupabase } from '../../lib/supabase';
 
 declare const QRCodeStyling: any;
 
@@ -45,9 +45,9 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
 
     useEffect(() => {
         const fetchProfile = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await getSupabase().auth.getUser();
             if (user) {
-                const { data } = await supabase.from('profiles').select('id, full_name, profile_slug').eq('user_id', user.id).single();
+                const { data } = await getSupabase().from('profiles').select('id, full_name, profile_slug').eq('user_id', user.id).single();
                 if (data) {
                     setProfile(data);
                     const targetUrl = `https://www.canopycorp.in/#/p/${data.profile_slug}`;

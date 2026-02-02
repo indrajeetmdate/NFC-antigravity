@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Session, SupabaseClient } from '@supabase/supabase-js';
-import { getSupabase, onSupabaseRecreated } from '../lib/supabase';
+import { Session } from '@supabase/supabase-js';
+import { getSupabase, onSupabaseRecreated, registerAuthListener } from '../lib/supabase';
 import { useSupabaseLifecycle } from '../lib/supabaseLifecycle';
 import { Profile } from '../types';
 
@@ -24,7 +24,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [error, setError] = useState<Error | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const mounted = useRef(true);
-  const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+
+  // Track unsubscribe function for auth listener
+  const authUnsubscribeRef = useRef<(() => void) | null>(null);
 
   // Fetch profile helper - always uses current Supabase client
   const fetchProfile = useCallback(async (currentSession: Session | null) => {
@@ -36,7 +38,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (mounted.current) setError(null);
 
     try {
-      // Always get the current active Supabase client
       const client = getSupabase();
       const { data, error: apiError } = await client
         .from('profiles')
@@ -57,15 +58,16 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Subscribe to auth state changes on a given client
-  const subscribeToAuthChanges = useCallback((client: SupabaseClient) => {
+  // Subscribe to auth state changes using the tracked registerAuthListener
+  const subscribeToAuthChanges = useCallback(() => {
     // Unsubscribe from any existing subscription
-    if (authSubscriptionRef.current) {
-      authSubscriptionRef.current.unsubscribe();
-      authSubscriptionRef.current = null;
+    if (authUnsubscribeRef.current) {
+      authUnsubscribeRef.current();
+      authUnsubscribeRef.current = null;
     }
 
-    const { data: { subscription } } = client.auth.onAuthStateChange(async (event, newSession) => {
+    // Use registerAuthListener which tracks subscriptions for proper cleanup
+    const unsubscribe = registerAuthListener(async (event, newSession) => {
       if (!mounted.current) return;
 
       console.log(`[ProfileContext] Auth event: ${event}`);
@@ -83,8 +85,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     });
 
-    authSubscriptionRef.current = subscription;
-    return subscription;
+    authUnsubscribeRef.current = unsubscribe;
+    return unsubscribe;
   }, [fetchProfile]);
 
   // Initial setup
@@ -102,8 +104,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const initAuth = async () => {
       try {
         const client = getSupabase();
-
-        // 1. Get initial session
         const { data: { session: initialSession }, error: sessionError } = await client.auth.getSession();
 
         if (sessionError) throw sessionError;
@@ -126,28 +126,29 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     initAuth();
 
-    // 2. Subscribe to auth changes on current client
-    const client = getSupabase();
-    subscribeToAuthChanges(client);
+    // Subscribe to auth changes (this is tracked for cleanup)
+    subscribeToAuthChanges();
 
-    // 3. Register for client recreation events (global handler)
-    const unsubscribeRecreation = onSupabaseRecreated((newClient) => {
+    // Register for client recreation events
+    // When client is recreated, we need to re-subscribe to auth changes
+    const unsubscribeRecreation = onSupabaseRecreated(() => {
       if (!mounted.current) return;
       console.log('[ProfileContext] Supabase client recreated, re-subscribing to auth changes...');
-      subscribeToAuthChanges(newClient);
+      subscribeToAuthChanges();
     });
 
     return () => {
       mounted.current = false;
       clearTimeout(safetyTimeout);
-      if (authSubscriptionRef.current) {
-        authSubscriptionRef.current.unsubscribe();
+      // Clean up auth subscription
+      if (authUnsubscribeRef.current) {
+        authUnsubscribeRef.current();
       }
       unsubscribeRecreation();
     };
   }, [fetchProfile, subscribeToAuthChanges]);
 
-  // Handle Tab Visibility Changes with full client recreation
+  // Handle Tab Visibility Changes
   useSupabaseLifecycle({
     onClientRecreated: async (newClient, recoveredSession) => {
       if (!mounted.current) return;
@@ -156,7 +157,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsReconnecting(false);
       setSession(recoveredSession);
 
-      // Re-fetch profile with fresh client to ensure we have latest data
       if (recoveredSession?.user?.id) {
         await fetchProfile(recoveredSession);
       }
@@ -166,11 +166,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       console.log('[ProfileContext] No session after client recreation');
       setIsReconnecting(false);
-      // Don't clear session here - let auth state change handler deal with it
     },
     onVisibilityChange: (isVisible) => {
       if (isVisible && session) {
-        // Tab became visible after suspension - mark as reconnecting
         setIsReconnecting(true);
       }
     }

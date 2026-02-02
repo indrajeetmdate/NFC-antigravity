@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Options, FileExtension, DotType, CornerSquareType, CornerDotType } from '../types';
 import { DOT_TYPES, CORNER_SQUARE_TYPES, CORNER_DOT_TYPES } from '../constants';
-import { supabase } from '../../lib/supabase';
+import { getSupabase } from '../../lib/supabase';
 
 declare const QRCodeStyling: any;
 
@@ -18,7 +18,7 @@ const QrCodeGenerator: React.FC = () => {
     const [displayValue, setDisplayValue] = useState('');
     const [isUsingDefault, setIsUsingDefault] = useState(true);
     const [profile, setProfile] = useState<{ id: string; full_name: string; profile_slug: string } | null>(null);
-    const [image, setImage] = useState<string | null>(`data:image/svg+xml;base64,${safeBtoa(DEFAULT_LOGO_SVG)}`); 
+    const [image, setImage] = useState<string | null>(`data:image/svg+xml;base64,${safeBtoa(DEFAULT_LOGO_SVG)}`);
     const [showAdvanced, setShowAdvanced] = useState(false);
     const navigate = useNavigate();
 
@@ -40,21 +40,21 @@ const QrCodeGenerator: React.FC = () => {
 
     useEffect(() => {
         const fetchProfile = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await getSupabase().auth.getUser();
             if (user) {
-                const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+                const { data } = await getSupabase().from('profiles').select('*').eq('user_id', user.id).single();
                 if (data) setProfile(data);
                 else navigate('/dashboard/carddesign');
             } else navigate('/login');
         };
         fetchProfile();
     }, [navigate]);
-    
+
     useEffect(() => {
         if (profile) {
             const defaultUrl = `https://www.canopycorp.in/#/p/${profile.profile_slug}`;
             const friendlyLabel = `${profile.full_name}'s Profile`;
-            
+
             setUrl(defaultUrl);
             setDisplayValue(friendlyLabel);
             setIsUsingDefault(true);
@@ -79,7 +79,7 @@ const QrCodeGenerator: React.FC = () => {
         const val = e.target.value;
         setDisplayValue(val);
         // If the user edits the input, the QR code now encodes exactly what they type
-        setUrl(val); 
+        setUrl(val);
         setIsUsingDefault(false);
     };
 
@@ -92,16 +92,16 @@ const QrCodeGenerator: React.FC = () => {
                         <label className="block text-sm font-medium text-zinc-300 mb-1">URL or Text</label>
                         <div className="relative">
                             <input
-                                type="text" 
+                                type="text"
                                 value={displayValue}
-                                onFocus={() => { 
+                                onFocus={() => {
                                     // Optional: Select text on focus for easier replacement
                                 }}
-                                onBlur={() => { 
-                                    if(profile && url === `https://www.canopycorp.in/#/p/${profile.profile_slug}`) { 
-                                        setIsUsingDefault(true); 
-                                        setDisplayValue(`${profile.full_name}'s Profile`); 
-                                    } 
+                                onBlur={() => {
+                                    if (profile && url === `https://www.canopycorp.in/#/p/${profile.profile_slug}`) {
+                                        setIsUsingDefault(true);
+                                        setDisplayValue(`${profile.full_name}'s Profile`);
+                                    }
                                 }}
                                 onChange={handleContentChange}
                                 className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-white outline-none focus:border-gold"
@@ -113,8 +113,8 @@ const QrCodeGenerator: React.FC = () => {
                             )}
                         </div>
                         <p className="text-xs text-zinc-500 mt-1">
-                            {isUsingDefault 
-                                ? "This QR code currently links to your Canopy Profile." 
+                            {isUsingDefault
+                                ? "This QR code currently links to your Canopy Profile."
                                 : "You are creating a custom QR code. It will encode exactly what you type above."}
                         </p>
                     </div>

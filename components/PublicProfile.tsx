@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { Profile, CustomButtonElement } from '../types';
 import { SOCIAL_ICONS } from '../constants';
 import { generateVCardContent } from '../utils/vcardGenerator';
@@ -36,7 +36,7 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData }) => {
         // Attempt to fetch profile by slug
         // We use .select().limit(1) and then check array length for maximum robustness
         // vs .maybeSingle() which implies 0 or 1 row logic that sometimes varies by library version
-        const { data, error } = await supabase
+        const { data, error } = await getSupabase()
           .from('profiles')
           .select('*')
           .eq('profile_slug', slug)

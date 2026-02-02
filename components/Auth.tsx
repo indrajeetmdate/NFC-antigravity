@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { useProfile } from '../context/ProfileContext';
 
 interface AuthProps {
@@ -47,7 +47,7 @@ const Auth: React.FC<AuthProps> = ({ type }) => {
       }
       if (!email.trim()) throw new Error("Email address is required.");
 
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await getSupabase().auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: window.location.origin,
@@ -72,7 +72,7 @@ const Auth: React.FC<AuthProps> = ({ type }) => {
     setLoading(true);
     setError(null);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await getSupabase().auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: window.location.origin,

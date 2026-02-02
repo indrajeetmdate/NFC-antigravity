@@ -1,7 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { registerAuthListener } from '../lib/supabase';
 import ProgressTracker from './ProgressTracker';
 import FeedbackForm from './FeedbackForm';
 import { usePreview } from '../context/PreviewContext';
@@ -26,12 +26,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // Listen for Password Recovery specifically if needed, otherwise AuthProvider handles state
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const unsubscribe = registerAuthListener(async (event, _session) => {
       if (event === 'PASSWORD_RECOVERY') {
         navigate('/update-password');
       }
     });
-    return () => subscription.unsubscribe();
+    return () => unsubscribe();
   }, [navigate]);
 
   const handleLogout = async () => {

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { useProfile } from '../context/ProfileContext'; // Use context
 import FeedbackForm from './FeedbackForm';
 import { useToast } from '../context/ToastContext';
@@ -59,7 +59,7 @@ const PaymentPage: React.FC = () => {
         if (code === 'LOYALTYCARD') {
             try {
                 // Automatically update the back side image for loyalty card holders
-                const { error } = await supabase
+                const { error } = await getSupabase()
                     .from('profiles')
                     .update({
                         back_side: 'https://jotjgsgadnwosofaonso.supabase.co/storage/v1/object/public/card_images/Loyalty_back_side.png',
@@ -122,7 +122,7 @@ const PaymentPage: React.FC = () => {
         setIsSubmittingUpi(true);
         try {
             // Use RPC call to submit payment and address
-            const { error } = await supabase.rpc('submit_payment', {
+            const { error } = await getSupabase().rpc('submit_payment', {
                 profile_id: profile.id,
                 upi_id: upiId.trim(),
                 address_url: deliveryAddress.trim()

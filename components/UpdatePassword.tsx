@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 
 const UpdatePassword: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -12,12 +12,12 @@ const UpdatePassword: React.FC = () => {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-    
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
       return;
@@ -27,7 +27,7 @@ const UpdatePassword: React.FC = () => {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      const { error } = await getSupabase().auth.updateUser({
         password: password
       });
 
@@ -58,7 +58,7 @@ const UpdatePassword: React.FC = () => {
                 {error}
               </div>
             )}
-            
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-zinc-300">
                 New Password

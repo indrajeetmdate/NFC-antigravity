@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -19,10 +19,10 @@ const ForgotPassword: React.FC = () => {
       // We use window.location.origin to ensure we send the base domain (e.g. https://your-app.com)
       // This must match one of the URLs in your Supabase Dashboard > Authentication > URL Configuration > Redirect URLs
       const redirectTo = window.location.origin;
-      
+
       console.log('Sending password reset with redirect URL:', redirectTo);
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
         redirectTo,
       });
 
