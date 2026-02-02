@@ -160,92 +160,119 @@ const CardDesignerPage: React.FC = () => {
             if (!mountedRef.current) return;
             if (!user) { navigate('/login'); return; }
 
-            const { data, error } = await supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
+            let { data, error } = await supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
 
             if (!mountedRef.current) return;
 
-            if (data) {
-                setProfileId(data.id);
-                setUserProfile(data);
-                setStoragePath(data.storage_folder_path);
-                const type = data.card_type === 'standie' ? 'standie' : 'business_card';
-                setCardType(type);
+            // If no profile exists, create one with auto-generated slug
+            if (!data) {
+                const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'user';
+                const sanitizedName = userName.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 15);
+                const tempSlug = `${sanitizedName}_${Math.random().toString(36).substring(2, 7)}`;
+                const storageFolder = `${tempSlug}_${user.id.substring(0, 5)}`;
 
-                // Check if design_data has actual content (not just empty object)
-                const hasSavedDesign = data.design_data && (data.design_data.front || data.design_data.back);
+                const { data: newProfile, error: createError } = await supabase.from('profiles').insert({
+                    user_id: user.id,
+                    full_name: user.user_metadata?.full_name || '',
+                    profile_slug: tempSlug,
+                    card_type: 'business_card',
+                    storage_folder_path: storageFolder,
+                    theme_color: '#d7ba52',
+                    card_color: '#1f1f1f',
+                    card_text_color: '#ffffff',
+                    background_color: '#000000',
+                    font_family: 'Poppins',
+                    font_size: 16,
+                    card_shape: 'rounded',
+                    social_links: {},
+                    custom_elements: [],
+                    background_settings: { zoom: 1, offsetX: 0, offsetY: 0 }
+                }).select().single();
 
-                if (hasSavedDesign) {
-                    if (data.design_data.front) setFrontData(data.design_data.front);
-                    if (data.design_data.back) setBackData(data.design_data.back);
-                    if (data.design_data.type) setCardType(data.design_data.type);
-
-                    // Check if QR code exists in saved design, if not, generate it
-                    const frontQrImage = data.design_data.front?.images?.find((img: any) => img.id === 'qr');
-                    if (!frontQrImage?.url) {
-                        // QR missing, generate default QR
-                        const qrUrl = localStorage.getItem('customQrCodeUrl');
-                        if (qrUrl) {
-                            setFrontData(prev => ({
-                                ...prev,
-                                images: prev.images.map(img => img.id === 'qr' ? { ...img, url: qrUrl } : img)
-                            }));
-                        } else if (data.profile_slug) {
-                            generateDefaultQr(data.profile_slug).then(defaultQrUrl => {
-                                if (mountedRef.current && defaultQrUrl) {
-                                    setFrontData(prev => ({
-                                        ...prev,
-                                        images: prev.images.map(img => img.id === 'qr' ? { ...img, url: defaultQrUrl } : img)
-                                    }));
-                                }
-                            });
-                        }
-                    }
-                } else {
-                    // INITIALIZE DEFAULT IF NO SAVED DESIGN
-                    if (type === 'standie') {
-                        setFrontData(prev => ({
-                            ...prev,
-                            texts: [
-                                { id: 'name', content: data.company || 'Brand Name', x: 50, y: 15, scale: 1.2, color: '#d7ba52', fontWeight: '700', fontFamily: data.font_family || 'Poppins', isLocked: false, fontSize: 36, letterSpacing: 0.05, textAlign: 'center' },
-                                { id: 'cta', content: 'SCAN / TAP for Link', x: 50, y: 85, scale: 1, color: '#ffffff', fontWeight: '500', fontFamily: data.font_family || 'Poppins', isLocked: false, fontSize: 24, letterSpacing: 0.05, textAlign: 'center' }
-                            ],
-                            images: prev.images.map(img => {
-                                if (img.id === 'qr') return { ...img, x: 50, y: 50, scale: 4 };
-                                if (img.id === 'logo') return { ...img, x: 50, y: 5, scale: 0.5 };
-                                return img;
-                            })
-                        }));
-                    } else {
-                        setFrontData(prev => ({
-                            ...prev,
-                            texts: prev.texts.map(t => t.id === 'name' ? { ...t, content: data.full_name || 'Your Name', y: 50, fontFamily: data.font_family || 'Poppins' } : t)
-                        }));
-                    }
-
-                    const qrUrl = localStorage.getItem('customQrCodeUrl');
-                    if (qrUrl) {
-                        setFrontData(prev => ({
-                            ...prev,
-                            images: prev.images.map(img => img.id === 'qr' ? { ...img, url: qrUrl } : img)
-                        }));
-                    } else if (data.profile_slug) {
-                        generateDefaultQr(data.profile_slug).then(defaultQrUrl => {
-                            if (mountedRef.current && defaultQrUrl) {
-                                setFrontData(prev => ({
-                                    ...prev,
-                                    images: prev.images.map(img => img.id === 'qr' ? { ...img, url: defaultQrUrl } : img)
-                                }));
-                            }
-                        });
-                    }
+                if (createError || !newProfile) {
+                    console.error("Error creating profile:", createError);
+                    showToast("Could not initialize profile. Please try again.", "error");
+                    return;
                 }
+                data = newProfile;
+            }
+
+            // Now we have a profile (existing or newly created)
+            setProfileId(data.id);
+            setUserProfile(data);
+            setStoragePath(data.storage_folder_path);
+            const type = data.card_type === 'standie' ? 'standie' : 'business_card';
+            setCardType(type);
+
+            // Always generate QR code using profile_slug (now guaranteed to exist)
+            const profileSlug = data.profile_slug;
+            const generateAndSetQr = async () => {
+                if (!profileSlug) return;
+
+                // Check if we have a custom QR first
+                const customQrUrl = localStorage.getItem('customQrCodeUrl');
+                if (customQrUrl) {
+                    setFrontData(prev => ({
+                        ...prev,
+                        images: prev.images.map(img => img.id === 'qr' ? { ...img, url: customQrUrl } : img)
+                    }));
+                    return;
+                }
+
+                // Generate default QR from profile slug
+                const defaultQrUrl = await generateDefaultQr(profileSlug);
+                if (mountedRef.current && defaultQrUrl) {
+                    setFrontData(prev => ({
+                        ...prev,
+                        images: prev.images.map(img => img.id === 'qr' ? { ...img, url: defaultQrUrl } : img)
+                    }));
+                }
+            };
+
+            // Check if design_data has actual content (not just empty object)
+            const hasSavedDesign = data.design_data && (data.design_data.front || data.design_data.back);
+
+            if (hasSavedDesign) {
+                if (data.design_data.front) setFrontData(data.design_data.front);
+                if (data.design_data.back) setBackData(data.design_data.back);
+                if (data.design_data.type) setCardType(data.design_data.type);
+
+                // Check if QR code exists in saved design, if not, generate it
+                const frontQrImage = data.design_data.front?.images?.find((img: any) => img.id === 'qr');
+                if (!frontQrImage?.url) {
+                    await generateAndSetQr();
+                }
+            } else {
+                // INITIALIZE DEFAULT IF NO SAVED DESIGN
+                if (type === 'standie') {
+                    setFrontData(prev => ({
+                        ...prev,
+                        texts: [
+                            { id: 'name', content: data.company || 'Brand Name', x: 50, y: 15, scale: 1.2, color: '#d7ba52', fontWeight: '700', fontFamily: data.font_family || 'Poppins', isLocked: false, fontSize: 36, letterSpacing: 0.05, textAlign: 'center' },
+                            { id: 'cta', content: 'SCAN / TAP for Link', x: 50, y: 85, scale: 1, color: '#ffffff', fontWeight: '500', fontFamily: data.font_family || 'Poppins', isLocked: false, fontSize: 24, letterSpacing: 0.05, textAlign: 'center' }
+                        ],
+                        images: prev.images.map(img => {
+                            if (img.id === 'qr') return { ...img, x: 50, y: 50, scale: 4 };
+                            if (img.id === 'logo') return { ...img, x: 50, y: 5, scale: 0.5 };
+                            return img;
+                        })
+                    }));
+                } else {
+                    setFrontData(prev => ({
+                        ...prev,
+                        texts: prev.texts.map(t => t.id === 'name' ? { ...t, content: data.full_name || 'Your Name', y: 50, fontFamily: data.font_family || 'Poppins' } : t)
+                    }));
+                }
+
+                // Generate QR code for new users
+                await generateAndSetQr();
             }
         };
 
         supabase.auth.getSession().then(({ data: { session } }) => fetchProfileForUser(session?.user ?? null));
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => fetchProfileForUser(session?.user ?? null));
         return () => { mountedRef.current = false; subscription.unsubscribe(); };
-    }, [navigate, generateDefaultQr]);
+    }, [navigate, generateDefaultQr, showToast]);
 
     // Debounced Auto-Save Logic (Saves 5s after last change)
     useEffect(() => {
