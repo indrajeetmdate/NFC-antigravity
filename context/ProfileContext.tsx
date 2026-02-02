@@ -21,6 +21,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const mounted = useRef(true);
+  const initialLoadComplete = useRef(false); // Prevent visibility handler during initial load
 
   // Fetch profile helper
   const fetchProfile = useCallback(async (currentSession: Session | null) => {
@@ -53,12 +54,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     mounted.current = true;
+    initialLoadComplete.current = false;
 
     // Fallback safety (keep as last resort)
     const safetyTimeout = setTimeout(() => {
       if (mounted.current && loading) {
         console.warn("Auth initialization fallback triggered");
         setLoading(false);
+        initialLoadComplete.current = true;
       }
     }, 8000);
 
@@ -81,6 +84,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } finally {
         if (mounted.current) {
           setLoading(false);
+          initialLoadComplete.current = true; // Mark initial load as complete
         }
       }
     };
@@ -133,8 +137,15 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   // Handle Tab Visibility Changes (Fix for Background Throttling)
+  // Only runs AFTER initial auth is complete to prevent race conditions
   useEffect(() => {
     const handleVisibilityChange = async () => {
+      // Don't run during initial load - let initAuth handle it
+      if (!initialLoadComplete.current) {
+        console.log("Visibility change ignored - initial load not complete");
+        return;
+      }
+
       if (document.visibilityState === 'visible' && mounted.current) {
         console.log("Tab active: Validating session...");
         try {
