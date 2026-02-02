@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { useSupabaseLifecycle, validateSupabaseSession } from '../lib/supabaseLifecycle';
+import { getSupabase } from '../lib/supabase';
+import { useSupabaseLifecycle, getValidSession } from '../lib/supabaseLifecycle';
 import { Profile, ProfileUpdate, ProfileInsert, CustomButtonElement, ButtonStyle, BackgroundSettings } from '../types';
 import { BUCKET_BACKGROUND_PHOTOS, BUCKET_PROFILE_PHOTOS, BUCKET_CARD_IMAGES, FONTS, SHAPES, SOCIAL_ICONS } from '../constants';
 import { useToast } from '../context/ToastContext';
@@ -115,12 +115,13 @@ const ProfileEditor: React.FC = () => {
     useEffect(() => {
         mountedRef.current = true;
         const fetchBackgroundTemplates = async () => {
-            const { data: files } = await supabase.storage.from(BUCKET_BACKGROUND_PHOTOS).list('templates');
+            const client = getSupabase();
+            const { data: files } = await client.storage.from(BUCKET_BACKGROUND_PHOTOS).list('templates');
             if (files && mountedRef.current) {
                 const templates = files
                     .filter(file => file.name !== '.emptyFolderPlaceholder')
                     .map(file => {
-                        const { data: { publicUrl } } = supabase.storage.from(BUCKET_BACKGROUND_PHOTOS).getPublicUrl(`templates/${file.name}`);
+                        const { data: { publicUrl } } = client.storage.from(BUCKET_BACKGROUND_PHOTOS).getPublicUrl(`templates/${file.name}`);
                         const displayName = file.name.split('.').slice(0, -1).join('.').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                         return { name: displayName, url: publicUrl };
                     });
@@ -142,7 +143,8 @@ const ProfileEditor: React.FC = () => {
         } else if (id) {
             // If context doesn't have it (e.g. direct link or stale), fetch specific
             const fetchSpecific = async () => {
-                const { data } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
+                const client = getSupabase();
+                const { data } = await client.from('profiles').select('*').eq('id', id).maybeSingle();
                 if (data && mountedRef.current) {
                     initializeForm(data);
                     initializedRef.current = id;
@@ -154,7 +156,7 @@ const ProfileEditor: React.FC = () => {
             }
         } else {
             // New profile
-            supabase.auth.getUser().then(({ data: { user } }) => {
+            getSupabase().auth.getUser().then(({ data: { user } }) => {
                 if (user && mountedRef.current) {
                     setFormData(prev => ({
                         ...prev,
@@ -321,11 +323,12 @@ const ProfileEditor: React.FC = () => {
                 setFormData(prev => ({ ...prev, background_photo_url: previewUrl }));
             } else if (type === 'custom_icon' && elementId) {
                 const uploadIcon = async () => {
-                    const { data: { user } } = await supabase.auth.getUser();
+                    const client = getSupabase();
+                    const { data: { user } } = await client.auth.getUser();
                     if (!user) return;
                     const path = `icons/${uuid()}_${file.name}`;
-                    await supabase.storage.from(BUCKET_CARD_IMAGES).upload(path, file);
-                    const { data: { publicUrl } } = supabase.storage.from(BUCKET_CARD_IMAGES).getPublicUrl(path);
+                    await client.storage.from(BUCKET_CARD_IMAGES).upload(path, file);
+                    const { data: { publicUrl } } = client.storage.from(BUCKET_CARD_IMAGES).getPublicUrl(path);
                     updateElement(elementId, 'iconUrl', publicUrl);
                 };
                 uploadIcon();
@@ -334,10 +337,11 @@ const ProfileEditor: React.FC = () => {
     };
 
     const uploadFile = async (file: File, bucket: string, folderPath: string, baseFileName: string) => {
+        const client = getSupabase();
         const fileExt = file.name.split('.').pop();
         const filePath = `${folderPath}/${baseFileName}_${Date.now()}.${fileExt}`;
-        await supabase.storage.from(bucket).upload(filePath, file);
-        return supabase.storage.from(bucket).getPublicUrl(filePath).data.publicUrl;
+        await client.storage.from(bucket).upload(filePath, file);
+        return client.storage.from(bucket).getPublicUrl(filePath).data.publicUrl;
     };
 
     const saveStateRef = useRef<'IDLE' | 'SAVING' | 'PENDING_SAVE'>('IDLE');
@@ -353,7 +357,8 @@ const ProfileEditor: React.FC = () => {
         if (!isAutosave) setLoading(true);
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const client = getSupabase();
+            const { data: { user } } = await client.auth.getUser();
             if (!user) throw new Error("No user found");
 
             let folderPath = formData.storage_folder_path;
@@ -380,9 +385,9 @@ const ProfileEditor: React.FC = () => {
             const payload = { ...finalData, storage_folder_path: folderPath, updated_at: new Date().toISOString() };
 
             if (id) {
-                await supabase.from('profiles').update(payload as ProfileUpdate).eq('id', id);
+                await client.from('profiles').update(payload as ProfileUpdate).eq('id', id);
             } else {
-                const { data } = await supabase.from('profiles').insert({ ...payload, user_id: user.id } as ProfileInsert).select().single();
+                const { data } = await client.from('profiles').insert({ ...payload, user_id: user.id } as ProfileInsert).select().single();
                 if (data && mountedRef.current) navigate(`/profile/${data.id}/edit`, { replace: true });
             }
 
@@ -426,7 +431,7 @@ const ProfileEditor: React.FC = () => {
             if (isVisible && hasPendingChanges.current && id) {
                 console.log('[ProfileEditor] Tab visible - checking for pending changes to sync');
                 // Validate session before attempting save
-                const session = await validateSupabaseSession();
+                const session = await getValidSession();
                 if (session) {
                     console.log('[ProfileEditor] Session valid - syncing pending changes');
                     await handleSubmit(true);

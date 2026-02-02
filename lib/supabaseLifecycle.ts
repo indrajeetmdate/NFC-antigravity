@@ -1,37 +1,43 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { Session, SupabaseClient } from '@supabase/supabase-js';
+import { getSupabase, recreateSupabase, onSupabaseRecreated } from './supabase';
 
 interface SupabaseLifecycleOptions {
-    /** Called when session is successfully recovered after tab becomes visible */
-    onSessionRecovered?: (session: Session) => void | Promise<void>;
-    /** Called when session recovery fails or session is lost */
+    /** Called when client is recreated with valid session after tab becomes visible */
+    onClientRecreated?: (client: SupabaseClient, session: Session) => void | Promise<void>;
+    /** Called when session is not available after recreation (user logged out) */
     onSessionLost?: () => void;
     /** Called on any visibility change - useful for triggering saves */
     onVisibilityChange?: (isVisible: boolean) => void | Promise<void>;
     /** Debounce delay in ms (default: 300) */
     debounceMs?: number;
-    /** Session refresh timeout in ms (default: 5000) */
+    /** Timeout for session check in ms (default: 5000) */
     timeoutMs?: number;
 }
 
 interface SupabaseLifecycleReturn {
-    /** Whether a session recovery is currently in progress */
+    /** Whether a recovery is currently in progress */
     isRecovering: boolean;
-    /** Force a session refresh (useful for manual recovery) */
-    forceSessionRefresh: () => Promise<Session | null>;
+    /** Force a full client recreation */
+    forceRecreate: () => Promise<SupabaseClient>;
 }
 
 /**
- * Hook to manage Supabase session lifecycle across browser tab switches.
+ * Hook to manage full Supabase client recovery on browser tab switches.
  * 
- * Browsers throttle or suspend JavaScript and WebSocket connections when
- * a tab becomes inactive. This hook ensures the Supabase client reconnects
- * and re-validates the session when the tab becomes active again.
+ * When a tab is backgrounded, browsers suspend WebSocket connections.
+ * This hook RECREATES the Supabase client on tab reactivation to ensure
+ * all database writes, reads, and realtime subscriptions work immediately.
+ * 
+ * Key differences from simple session refresh:
+ * - Removes all stale realtime channels
+ * - Creates a FRESH client instance
+ * - Lets client rehydrate from localStorage (no refreshSession call)
+ * - Notifies components to re-subscribe to realtime/auth
  */
 export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): SupabaseLifecycleReturn {
     const {
-        onSessionRecovered,
+        onClientRecreated,
         onSessionLost,
         onVisibilityChange,
         debounceMs = 300,
@@ -41,82 +47,62 @@ export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): Su
     const isRecoveringRef = useRef(false);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mountedRef = useRef(true);
+    const lastVisibilityTimestampRef = useRef<number>(Date.now());
 
-    // Force session refresh - can be called manually
-    const forceSessionRefresh = useCallback(async (): Promise<Session | null> => {
+    // Force recreate the Supabase client
+    const forceRecreate = useCallback(async (): Promise<SupabaseClient> => {
         if (isRecoveringRef.current) {
-            console.log('[SupabaseLifecycle] Session refresh already in progress, skipping...');
-            return null;
+            console.log('[SupabaseLifecycle] Recovery already in progress, skipping...');
+            return getSupabase();
         }
 
         isRecoveringRef.current = true;
 
         try {
-            // Create a timeout promise
+            // Create timeout promise for the entire operation
             const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Session refresh timeout')), timeoutMs);
+                setTimeout(() => reject(new Error('Client recreation timeout')), timeoutMs);
             });
 
-            // Try to get the current session first
-            const sessionPromise = supabase.auth.getSession();
-            const { data: { session: currentSession }, error: sessionError } = await Promise.race([
-                sessionPromise,
-                timeoutPromise
-            ]) as Awaited<typeof sessionPromise>;
+            // Recreate the client (removes channels, creates fresh instance)
+            const recreatePromise = (async () => {
+                const newClient = await recreateSupabase();
 
-            if (!mountedRef.current) return null;
+                // Get session from NEW client (rehydrates from localStorage)
+                const { data: { session }, error } = await newClient.auth.getSession();
 
-            if (sessionError) {
-                console.warn('[SupabaseLifecycle] Session check error:', sessionError.message);
-                onSessionLost?.();
-                return null;
-            }
+                if (!mountedRef.current) return newClient;
 
-            // If we have a valid session, return it
-            if (currentSession) {
-                console.log('[SupabaseLifecycle] Session valid, triggering recovery callback');
-                await onSessionRecovered?.(currentSession);
-                return currentSession;
-            }
+                if (error) {
+                    console.warn('[SupabaseLifecycle] Session check error after recreation:', error.message);
+                    onSessionLost?.();
+                    return newClient;
+                }
 
-            // Session is missing, try to refresh
-            console.log('[SupabaseLifecycle] Session missing, attempting refresh...');
-            const refreshPromise = supabase.auth.refreshSession();
-            const { data, error: refreshError } = await Promise.race([
-                refreshPromise,
-                timeoutPromise
-            ]) as Awaited<typeof refreshPromise>;
+                if (session) {
+                    console.log('[SupabaseLifecycle] Client recreated with valid session');
+                    await onClientRecreated?.(newClient, session);
+                } else {
+                    console.log('[SupabaseLifecycle] Client recreated but no session (user logged out)');
+                    onSessionLost?.();
+                }
 
-            if (!mountedRef.current) return null;
+                return newClient;
+            })();
 
-            if (refreshError) {
-                console.warn('[SupabaseLifecycle] Session refresh failed:', refreshError.message);
-                onSessionLost?.();
-                return null;
-            }
-
-            if (data.session) {
-                console.log('[SupabaseLifecycle] Session refreshed successfully');
-                await onSessionRecovered?.(data.session);
-                return data.session;
-            }
-
-            // No session could be recovered
-            console.log('[SupabaseLifecycle] No session available');
-            onSessionLost?.();
-            return null;
+            return await Promise.race([recreatePromise, timeoutPromise]);
 
         } catch (err: any) {
-            if (err.message === 'Session refresh timeout') {
-                console.warn('[SupabaseLifecycle] Session refresh timed out - continuing without refresh');
+            if (err.message === 'Client recreation timeout') {
+                console.warn('[SupabaseLifecycle] Client recreation timed out');
             } else {
-                console.error('[SupabaseLifecycle] Session recovery error:', err);
+                console.error('[SupabaseLifecycle] Client recreation error:', err);
             }
-            return null;
+            return getSupabase();
         } finally {
             isRecoveringRef.current = false;
         }
-    }, [onSessionRecovered, onSessionLost, timeoutMs]);
+    }, [onClientRecreated, onSessionLost, timeoutMs]);
 
     // Handle visibility change
     useEffect(() => {
@@ -124,12 +110,14 @@ export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): Su
 
         const handleVisibilityChange = async () => {
             const isVisible = document.visibilityState === 'visible';
+            const now = Date.now();
 
             // Always notify about visibility changes
             onVisibilityChange?.(isVisible);
 
             if (!isVisible) {
-                // Tab going inactive - clear any pending debounce
+                // Tab going inactive - record timestamp and clear debounce
+                lastVisibilityTimestampRef.current = now;
                 if (debounceTimerRef.current) {
                     clearTimeout(debounceTimerRef.current);
                     debounceTimerRef.current = null;
@@ -137,18 +125,30 @@ export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): Su
                 return;
             }
 
-            // Tab becoming visible - debounce the session check
+            // Tab becoming visible - check how long we were away
+            const timeSuspended = now - lastVisibilityTimestampRef.current;
+
+            // Only recreate if tab was suspended for more than 5 seconds
+            // Short switches don't need full recreation
+            if (timeSuspended < 5000) {
+                console.log(`[SupabaseLifecycle] Tab visible after ${timeSuspended}ms (quick switch, skipping recreation)`);
+                return;
+            }
+
+            console.log(`[SupabaseLifecycle] Tab visible after ${timeSuspended}ms suspension, initiating recovery...`);
+
+            // Debounce the recreation
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
             }
 
             debounceTimerRef.current = setTimeout(async () => {
                 if (!mountedRef.current) return;
-                await forceSessionRefresh();
+                await forceRecreate();
             }, debounceMs);
         };
 
-        // Also handle focus events (covers some edge cases the visibility API misses)
+        // Also handle focus events
         const handleFocus = () => {
             if (document.visibilityState === 'visible') {
                 handleVisibilityChange();
@@ -166,31 +166,30 @@ export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): Su
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleFocus);
         };
-    }, [forceSessionRefresh, onVisibilityChange, debounceMs]);
+    }, [forceRecreate, onVisibilityChange, debounceMs]);
 
     return {
         isRecovering: isRecoveringRef.current,
-        forceSessionRefresh
+        forceRecreate
     };
 }
 
 /**
- * Utility function to check if Supabase session is healthy.
- * Can be used before critical operations to ensure auth is valid.
+ * Utility function to get session from current Supabase client.
+ * Use before critical operations.
  */
-export async function validateSupabaseSession(): Promise<Session | null> {
+export async function getValidSession(): Promise<Session | null> {
     try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const client = getSupabase();
+        const { data: { session }, error } = await client.auth.getSession();
         if (error || !session) {
-            // Try refresh
-            const { data, error: refreshError } = await supabase.auth.refreshSession();
-            if (refreshError || !data.session) {
-                return null;
-            }
-            return data.session;
+            return null;
         }
         return session;
     } catch {
         return null;
     }
 }
+
+// Re-export for convenience
+export { getSupabase, recreateSupabase, onSupabaseRecreated } from './supabase';

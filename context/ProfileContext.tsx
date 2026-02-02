@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { Session, SupabaseClient } from '@supabase/supabase-js';
+import { getSupabase, onSupabaseRecreated } from '../lib/supabase';
 import { useSupabaseLifecycle } from '../lib/supabaseLifecycle';
 import { Profile } from '../types';
 
@@ -24,10 +24,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [error, setError] = useState<Error | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const mounted = useRef(true);
+  const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
-  // Fetch profile helper
+  // Fetch profile helper - always uses current Supabase client
   const fetchProfile = useCallback(async (currentSession: Session | null) => {
-    if (!currentSession?.user) {
+    if (!currentSession?.user?.id) {
       if (mounted.current) setProfile(null);
       return;
     }
@@ -35,7 +36,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (mounted.current) setError(null);
 
     try {
-      const { data, error: apiError } = await supabase
+      // Always get the current active Supabase client
+      const client = getSupabase();
+      const { data, error: apiError } = await client
         .from('profiles')
         .select('*')
         .eq('user_id', currentSession.user.id)
@@ -54,32 +57,65 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
+  // Subscribe to auth state changes on a given client
+  const subscribeToAuthChanges = useCallback((client: SupabaseClient) => {
+    // Unsubscribe from any existing subscription
+    if (authSubscriptionRef.current) {
+      authSubscriptionRef.current.unsubscribe();
+      authSubscriptionRef.current = null;
+    }
+
+    const { data: { subscription } } = client.auth.onAuthStateChange(async (event, newSession) => {
+      if (!mounted.current) return;
+
+      console.log(`[ProfileContext] Auth event: ${event}`);
+
+      // Update session state
+      setSession(newSession);
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        if (newSession?.user?.id) {
+          await fetchProfile(newSession);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    authSubscriptionRef.current = subscription;
+    return subscription;
+  }, [fetchProfile]);
+
+  // Initial setup
   useEffect(() => {
     mounted.current = true;
 
-    // Fallback safety (keep as last resort)
+    // Fallback safety timeout
     const safetyTimeout = setTimeout(() => {
       if (mounted.current && loading) {
-        console.warn("Auth initialization fallback triggered");
+        console.warn("[ProfileContext] Auth initialization fallback triggered");
         setLoading(false);
       }
     }, 8000);
 
     const initAuth = async () => {
       try {
-        // 1. Get initial session
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        const client = getSupabase();
 
-        if (error) throw error;
+        // 1. Get initial session
+        const { data: { session: initialSession }, error: sessionError } = await client.auth.getSession();
+
+        if (sessionError) throw sessionError;
 
         if (mounted.current) {
           setSession(initialSession);
-          if (initialSession) {
+          if (initialSession?.user?.id) {
             await fetchProfile(initialSession);
           }
         }
       } catch (err: any) {
-        console.error("Auth initialization error:", err);
+        console.error("[ProfileContext] Auth initialization error:", err);
         if (mounted.current) setError(err);
       } finally {
         if (mounted.current) {
@@ -90,51 +126,51 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     initAuth();
 
-    // 2. Listen for changes (Login, Logout, Auto-refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    // 2. Subscribe to auth changes on current client
+    const client = getSupabase();
+    subscribeToAuthChanges(client);
+
+    // 3. Register for client recreation events (global handler)
+    const unsubscribeRecreation = onSupabaseRecreated((newClient) => {
       if (!mounted.current) return;
-
-      // Update session state
-      setSession(newSession);
-
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        if (newSession) await fetchProfile(newSession);
-      } else if (event === 'SIGNED_OUT') {
-        setProfile(null);
-        setLoading(false);
-      }
+      console.log('[ProfileContext] Supabase client recreated, re-subscribing to auth changes...');
+      subscribeToAuthChanges(newClient);
     });
 
     return () => {
       mounted.current = false;
       clearTimeout(safetyTimeout);
-      subscription.unsubscribe();
+      if (authSubscriptionRef.current) {
+        authSubscriptionRef.current.unsubscribe();
+      }
+      unsubscribeRecreation();
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, subscribeToAuthChanges]);
 
-  // Handle Tab Visibility Changes with enhanced recovery using lifecycle hook
+  // Handle Tab Visibility Changes with full client recreation
   useSupabaseLifecycle({
-    onSessionRecovered: async (recoveredSession) => {
+    onClientRecreated: async (newClient, recoveredSession) => {
       if (!mounted.current) return;
 
-      console.log('[ProfileContext] Session recovered, refreshing profile...');
+      console.log('[ProfileContext] Client recreated with valid session, refreshing profile...');
       setIsReconnecting(false);
       setSession(recoveredSession);
 
-      // Re-fetch profile to ensure we have fresh data
-      await fetchProfile(recoveredSession);
+      // Re-fetch profile with fresh client to ensure we have latest data
+      if (recoveredSession?.user?.id) {
+        await fetchProfile(recoveredSession);
+      }
     },
     onSessionLost: () => {
       if (!mounted.current) return;
 
-      console.log('[ProfileContext] Session lost during recovery');
+      console.log('[ProfileContext] No session after client recreation');
       setIsReconnecting(false);
-      // Don't clear session here - let the auth state change handler deal with it
-      // This prevents flash of logged-out state if the session is actually still valid
+      // Don't clear session here - let auth state change handler deal with it
     },
     onVisibilityChange: (isVisible) => {
       if (isVisible && session) {
-        // Tab became visible - mark as reconnecting
+        // Tab became visible after suspension - mark as reconnecting
         setIsReconnecting(true);
       }
     },
@@ -143,7 +179,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const refreshProfile = useCallback(async () => {
-    if (session) {
+    if (session?.user?.id) {
       await fetchProfile(session);
     }
   }, [fetchProfile, session]);
@@ -156,9 +192,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setError(null);
 
     try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error("Error signing out:", error);
+      const client = getSupabase();
+      await client.auth.signOut();
+    } catch (err) {
+      console.error("Error signing out:", err);
     }
   }, []);
 

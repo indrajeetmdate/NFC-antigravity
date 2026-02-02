@@ -7,8 +7,8 @@ import ControlPanel from './components/components_ControlPanel';
 import AiGeneratorModal from './components/components_AiGeneratorModal';
 import BottomEditBar from './components/BottomEditBar';
 import type { CardFaceData, ImageElement, TextElement } from '../types';
-import { supabase } from '../lib/supabase';
-import { useSupabaseLifecycle, validateSupabaseSession } from '../lib/supabaseLifecycle';
+import { getSupabase } from '../lib/supabase';
+import { useSupabaseLifecycle, getValidSession } from '../lib/supabaseLifecycle';
 import { BUCKET_CARD_IMAGES } from '../constants';
 import { useToast } from '../context/ToastContext';
 import PreviewModeToggle from '../components/PreviewModeToggle';
@@ -176,7 +176,8 @@ const CardDesignerPage: React.FC = () => {
             if (!mountedRef.current) return;
             if (!user) { navigate('/login'); return; }
 
-            let { data, error } = await supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
+            const client = getSupabase();
+            let { data, error } = await client.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
 
             if (!mountedRef.current) return;
 
@@ -187,7 +188,7 @@ const CardDesignerPage: React.FC = () => {
                 const tempSlug = `${sanitizedName}_${Math.random().toString(36).substring(2, 7)}`;
                 const storageFolder = `${tempSlug}_${user.id.substring(0, 5)}`;
 
-                const { data: newProfile, error: createError } = await supabase.from('profiles').insert({
+                const { data: newProfile, error: createError } = await client.from('profiles').insert({
                     user_id: user.id,
                     full_name: user.user_metadata?.full_name || '',
                     profile_slug: tempSlug,
@@ -285,8 +286,9 @@ const CardDesignerPage: React.FC = () => {
             }
         };
 
-        supabase.auth.getSession().then(({ data: { session } }) => fetchProfileForUser(session?.user ?? null));
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => fetchProfileForUser(session?.user ?? null));
+        const client = getSupabase();
+        client.auth.getSession().then(({ data: { session } }) => fetchProfileForUser(session?.user ?? null));
+        const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => fetchProfileForUser(session?.user ?? null));
         return () => { mountedRef.current = false; subscription.unsubscribe(); };
     }, [navigate, generateDefaultQr, showToast]);
 
@@ -299,7 +301,8 @@ const CardDesignerPage: React.FC = () => {
 
         autoSaveTimerRef.current = window.setTimeout(async () => {
             if (profileId && mountedRef.current) {
-                await supabase.from('profiles').update({
+                const client = getSupabase();
+                await client.from('profiles').update({
                     design_data: { front: frontData, back: backData, type: cardType },
                     updated_at: new Date().toISOString()
                 }).eq('id', profileId);
@@ -317,10 +320,11 @@ const CardDesignerPage: React.FC = () => {
             if (isVisible && hasPendingChanges.current && profileId) {
                 console.log('[CardDesigner] Tab visible - checking for pending changes to sync');
                 // Validate session before attempting save
-                const session = await validateSupabaseSession();
+                const session = await getValidSession();
                 if (session && mountedRef.current) {
                     console.log('[CardDesigner] Session valid - syncing pending changes');
-                    await supabase.from('profiles').update({
+                    const client = getSupabase();
+                    await client.from('profiles').update({
                         design_data: { front: frontData, back: backData, type: cardType },
                         updated_at: new Date().toISOString()
                     }).eq('id', profileId);
@@ -476,16 +480,17 @@ const CardDesignerPage: React.FC = () => {
     }, [showToast, CARD_WIDTH, CARD_HEIGHT]);
 
     const captureAndUploadImage = async (side: 'front' | 'back', data: CardFaceData, folderPath: string): Promise<string> => {
+        const client = getSupabase();
         if (data.fullDesignUrl) {
             try {
                 const blob = dataURLtoBlob(data.fullDesignUrl);
                 if (!blob) throw new Error("Failed to process uploaded design.");
 
                 const filePath = `${folderPath}/${side}_card.png`;
-                const { error } = await supabase.storage.from(BUCKET_CARD_IMAGES).upload(filePath, blob, { upsert: true, cacheControl: '0' });
+                const { error } = await client.storage.from(BUCKET_CARD_IMAGES).upload(filePath, blob, { upsert: true, cacheControl: '0' });
                 if (error) throw error;
 
-                const { data: { publicUrl } } = supabase.storage.from(BUCKET_CARD_IMAGES).getPublicUrl(filePath);
+                const { data: { publicUrl } } = client.storage.from(BUCKET_CARD_IMAGES).getPublicUrl(filePath);
                 return publicUrl;
             } catch (e: any) {
                 console.error(`Error processing direct upload for ${side}:`, e);
@@ -512,11 +517,11 @@ const CardDesignerPage: React.FC = () => {
         if (!blob) throw new Error("Image generation failed (Blob conversion).");
 
         const filePath = `${folderPath}/${side}_card.png`;
-        const { error } = await supabase.storage.from(BUCKET_CARD_IMAGES).upload(filePath, blob, { upsert: true, cacheControl: '0' });
+        const { error } = await client.storage.from(BUCKET_CARD_IMAGES).upload(filePath, blob, { upsert: true, cacheControl: '0' });
 
         if (error) throw error;
 
-        const { data: { publicUrl } } = supabase.storage.from(BUCKET_CARD_IMAGES).getPublicUrl(filePath);
+        const { data: { publicUrl } } = client.storage.from(BUCKET_CARD_IMAGES).getPublicUrl(filePath);
         return publicUrl;
     };
 
@@ -549,20 +554,21 @@ const CardDesignerPage: React.FC = () => {
         setSaveStatus('Saving design...');
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const client = getSupabase();
+            const { data: { user } } = await client.auth.getUser();
             if (!user) throw new Error("Please log in to save.");
 
             let currentProfileId = profileId;
             let currentFolder = storagePath;
 
             if (!currentProfileId) {
-                const { data: existing } = await supabase.from('profiles').select('id, storage_folder_path').eq('user_id', user.id).maybeSingle();
+                const { data: existing } = await client.from('profiles').select('id, storage_folder_path').eq('user_id', user.id).maybeSingle();
                 if (existing) {
                     currentProfileId = existing.id;
                     currentFolder = existing.storage_folder_path;
                 } else {
                     const tempSlug = `card_${Math.random().toString(36).substr(2, 5)}`;
-                    const { data: newProfile, error } = await supabase.from('profiles').insert({
+                    const { data: newProfile, error } = await client.from('profiles').insert({
                         user_id: user.id,
                         full_name: user.user_metadata?.full_name || 'User',
                         profile_slug: tempSlug,
@@ -579,7 +585,7 @@ const CardDesignerPage: React.FC = () => {
             if (!currentFolder) throw new Error("Storage folder path is missing.");
 
             // Save JSON data only (instant, no html-to-image dependency)
-            await supabase.from('profiles').update({
+            await client.from('profiles').update({
                 card_type: cardType,
                 design_data: { front: frontData, back: backData, type: cardType },
                 updated_at: new Date().toISOString()
@@ -617,7 +623,8 @@ const CardDesignerPage: React.FC = () => {
             }
 
             if (Object.keys(imageUpdates).length > 0) {
-                await supabase.from('profiles').update(imageUpdates).eq('id', currentProfileId);
+                const client = getSupabase();
+                await client.from('profiles').update(imageUpdates).eq('id', currentProfileId);
             }
 
             if (mountedRef.current) {
