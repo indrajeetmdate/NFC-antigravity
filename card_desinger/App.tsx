@@ -106,6 +106,7 @@ const CardDesignerPage: React.FC = () => {
     const [userProfile, setUserProfile] = useState<any>(null);
     const [storagePath, setStoragePath] = useState<string | null>(null);
     const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>(getPreferredPreviewMode());
+    const [isDesignModeActive, setIsDesignModeActive] = useState(false);
 
     const handlePreviewModeChange = (mode: 'mobile' | 'desktop') => {
         setPreviewMode(mode);
@@ -323,15 +324,28 @@ const CardDesignerPage: React.FC = () => {
         const startY = ((coords.y - cardRect.top) / cardRect.height) * 100;
 
         const data = side === 'front' ? frontData : backData;
-        const item = type === 'text' ? data.texts.find(t => t.id === id) : data.images.find(i => i.id === id);
-        if (!item) return;
+
+        // Handle special elements (nfc-icon, branding)
+        let itemX: number, itemY: number;
+        if (id === 'nfc-icon') {
+            itemX = data.nfcIconPosition?.x ?? 92;
+            itemY = data.nfcIconPosition?.y ?? 10;
+        } else if (id === 'branding') {
+            itemX = data.brandingPosition?.x ?? 15;
+            itemY = data.brandingPosition?.y ?? 90;
+        } else {
+            const item = type === 'text' ? data.texts.find(t => t.id === id) : data.images.find(i => i.id === id);
+            if (!item) return;
+            itemX = item.x;
+            itemY = item.y;
+        }
 
         setDraggedItem({
             side,
             type,
             id,
-            offsetX: startX - item.x,
-            offsetY: startY - item.y,
+            offsetX: startX - itemX,
+            offsetY: startY - itemY,
         });
     };
 
@@ -348,7 +362,12 @@ const CardDesignerPage: React.FC = () => {
 
         const setData = draggedItem.side === 'front' ? setFrontData : setBackData;
         setData(prev => {
-            if (draggedItem.type === 'text') {
+            // Handle special elements
+            if (draggedItem.id === 'nfc-icon') {
+                return { ...prev, nfcIconPosition: { x: newX, y: newY } };
+            } else if (draggedItem.id === 'branding') {
+                return { ...prev, brandingPosition: { x: newX, y: newY } };
+            } else if (draggedItem.type === 'text') {
                 return { ...prev, texts: prev.texts.map(t => t.id === draggedItem.id ? { ...t, x: newX, y: newY } : t) };
             } else {
                 return { ...prev, images: prev.images.map(i => i.id === draggedItem.id ? { ...i, x: newX, y: newY } : i) };
@@ -582,6 +601,8 @@ const CardDesignerPage: React.FC = () => {
                     cardType={cardType}
                     setCardType={setCardType}
                     onReset={handleReset}
+                    onTriggerUpload={() => uploadDesignRef.current?.click()}
+                    isDesignModeActive={isDesignModeActive}
                 />
             </div>
 
@@ -666,30 +687,9 @@ const CardDesignerPage: React.FC = () => {
 
             {/* Bottom Edit Bar */}
             <BottomEditBar
-                onDesignYourOwn={() => { }}
-                onUploadDesign={() => uploadDesignRef.current?.click()}
+                onDesignYourOwn={() => setIsDesignModeActive(!isDesignModeActive)}
                 onAiGenerate={() => setAiModalOpen(true)}
-                themeColor={activeData.nfcIconColor || '#d7ba52'}
-                onThemeColorChange={(color) => {
-                    setActiveData(prev => ({
-                        ...prev,
-                        nfcIconColor: color,
-                        urlColor: color
-                    }));
-                    // Update QR code color if it's a QuickChart URL
-                    setActiveData(prev => {
-                        const qrImage = prev.images.find(i => i.id === 'qr');
-                        if (!qrImage?.url?.includes('quickchart.io')) return prev;
-                        try {
-                            const urlObj = new URL(qrImage.url);
-                            urlObj.searchParams.set('dark', color.replace('#', ''));
-                            return {
-                                ...prev,
-                                images: prev.images.map(i => i.id === 'qr' ? { ...i, url: urlObj.toString() } : i)
-                            };
-                        } catch { return prev; }
-                    });
-                }}
+                isDesignModeActive={isDesignModeActive}
             />
         </div>
     );

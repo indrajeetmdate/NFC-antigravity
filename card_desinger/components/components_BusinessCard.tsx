@@ -144,17 +144,51 @@ const BusinessCard = React.forwardRef<HTMLDivElement, BusinessCardProps>(({
                 </div>
               ))}
 
-              <NfcIcon className="absolute top-4 right-4 w-14 h-14 z-30 pointer-events-none opacity-80" fill={nfcIconColor} />
+              {/* NFC Icon - Draggable */}
+              <div
+                className={`absolute cursor-move touch-none z-30 ${selectedElementId === 'nfc-icon' ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50' : ''}`}
+                style={{
+                  left: `${data.nfcIconPosition?.x ?? 92}%`,
+                  top: `${data.nfcIconPosition?.y ?? 10}%`,
+                  transform: 'translate(-50%, -50%)',
+                  WebkitTapHighlightColor: 'transparent'
+                }}
+                onMouseDown={(e) => onDragStart('image', 'nfc-icon', e)}
+                onTouchStart={(e) => onDragStart('image', 'nfc-icon', e)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect('image', 'nfc-icon');
+                }}
+              >
+                <NfcIcon className="w-14 h-14 opacity-80 pointer-events-none" fill={nfcIconColor} />
+              </div>
 
+              {/* Branding - Draggable (Back side only) */}
               {side === 'Back' && (
                 <div
-                  className="absolute bottom-4 left-6 text-[10px] font-medium tracking-wider z-30 pointer-events-none"
+                  className={`absolute cursor-move touch-none z-30 ${selectedElementId === 'branding' ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50' : ''}`}
                   style={{
-                    color: urlColor || nfcIconColor, // Use specific URL color or fallback
-                    opacity: 0.6,
+                    left: `${data.brandingPosition?.x ?? 15}%`,
+                    top: `${data.brandingPosition?.y ?? 90}%`,
+                    transform: 'translate(-50%, -50%)',
+                    WebkitTapHighlightColor: 'transparent'
+                  }}
+                  onMouseDown={(e) => onDragStart('text', 'branding', e)}
+                  onTouchStart={(e) => onDragStart('text', 'branding', e)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect('text', 'branding');
                   }}
                 >
-                  www.canopycorp.in
+                  <div
+                    className="text-[10px] font-medium tracking-wider pointer-events-none whitespace-nowrap"
+                    style={{
+                      color: urlColor || nfcIconColor,
+                      opacity: 0.6,
+                    }}
+                  >
+                    www.canopycorp.in
+                  </div>
                 </div>
               )}
             </div>

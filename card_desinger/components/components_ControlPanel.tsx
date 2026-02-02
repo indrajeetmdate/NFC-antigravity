@@ -18,6 +18,8 @@ interface ControlPanelProps {
     cardType: 'business_card' | 'standie';
     setCardType: (type: 'business_card' | 'standie') => void;
     onReset: () => void;
+    onTriggerUpload: () => void;
+    isDesignModeActive: boolean;
 }
 
 const uuid = () => Math.random().toString(36).substring(2, 9);
@@ -66,10 +68,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     saveStatus,
     cardType,
     setCardType,
-    onReset
+    onReset,
+    onTriggerUpload,
+    isDesignModeActive
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [mode, setMode] = useState<Mode>('TOOLS');
+    const [mode, setMode] = useState<Mode>('HOME');
 
     // Color picker states
     const [hsv, setHsv] = useState({ h: 180, s: 50, v: 50 });
@@ -485,11 +489,43 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     return (
         <div className="w-full bg-zinc-900 border-b border-zinc-800 p-2">
             <div className="flex justify-between items-center px-2 mb-2 pt-1 border-b border-zinc-800 pb-2 overflow-x-auto scrollbar-hide gap-2">
-                <div className="flex bg-zinc-800 rounded-lg p-0.5 shadow-inner flex-shrink-0">
-                    <button onClick={() => setCardType('business_card')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'business_card' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Card</button>
-                    <button onClick={() => setCardType('standie')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'standie' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Standie</button>
+                {/* Left side: Card Type + Upload Button */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="flex bg-zinc-800 rounded-lg p-0.5 shadow-inner">
+                        <button onClick={() => setCardType('business_card')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'business_card' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Card</button>
+                        <button onClick={() => setCardType('standie')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'standie' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Standie</button>
+                    </div>
+
+                    {/* Upload Card Button - Prominent */}
+                    <button
+                        onClick={onTriggerUpload}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-gold/80 to-gold text-black text-[11px] font-bold hover:from-gold hover:to-gold/90 transition-all shadow-md"
+                        title="Upload your existing card design"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        <span className="hidden sm:inline">Upload Card</span>
+                        <span className="sm:hidden">Upload</span>
+                    </button>
+
+                    {/* Theme Color Picker */}
+                    <div className="flex items-center gap-2 bg-zinc-800/50 px-3 py-1.5 rounded-lg border border-zinc-700">
+                        <span className="text-[10px] text-zinc-400 hidden sm:inline">Theme</span>
+                        <div className="relative group">
+                            <input
+                                type="color"
+                                value={activeCardData.nfcIconColor || '#d7ba52'}
+                                onChange={(e) => handleThemeColorChange(e.target.value)}
+                                className="w-7 h-7 rounded-md border border-zinc-600 cursor-pointer bg-transparent p-0 appearance-none overflow-hidden"
+                                title="Theme color - Updates QR, NFC Icon & Branding"
+                            />
+                            <div className="absolute inset-0 pointer-events-none rounded-md ring-2 ring-transparent group-hover:ring-gold transition-all"></div>
+                        </div>
+                    </div>
                 </div>
 
+                {/* Right side: View Toggles + Save */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                     {/* View Toggles */}
                     <div className="flex bg-zinc-800 rounded-lg p-0.5">
@@ -521,7 +557,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
             </div>
 
-            {renderContent()}
+            {/* Only show tool content when design mode is active */}
+            {isDesignModeActive && renderContent()}
         </div>
     );
 };

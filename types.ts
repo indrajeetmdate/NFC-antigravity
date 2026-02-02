@@ -114,4 +114,6 @@ export interface CardFaceData {
   fullDesignUrl?: string | null;
   nfcIconColor: string;
   urlColor?: string;
+  nfcIconPosition?: { x: number; y: number }; // percentage position, default top-right
+  brandingPosition?: { x: number; y: number }; // percentage position, default bottom-left
 }
