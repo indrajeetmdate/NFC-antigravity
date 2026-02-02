@@ -302,12 +302,17 @@ const CardDesignerPage: React.FC = () => {
         autoSaveTimerRef.current = window.setTimeout(async () => {
             if (profileId && mountedRef.current) {
                 const client = getSupabase();
-                await client.from('profiles').update({
+                const { error } = await client.from('profiles').update({
                     design_data: { front: frontData, back: backData, type: cardType },
                     updated_at: new Date().toISOString()
                 }).eq('id', profileId);
-                console.log("Auto-saved design data");
-                hasPendingChanges.current = false;
+
+                if (error) {
+                    console.error("Auto-save failed:", error);
+                } else {
+                    console.log("Auto-saved design data");
+                    hasPendingChanges.current = false;
+                }
             }
         }, 5000);
 
@@ -324,12 +329,17 @@ const CardDesignerPage: React.FC = () => {
                 if (session && mountedRef.current) {
                     console.log('[CardDesigner] Session valid - syncing pending changes');
                     const client = getSupabase();
-                    await client.from('profiles').update({
+                    const { error } = await client.from('profiles').update({
                         design_data: { front: frontData, back: backData, type: cardType },
                         updated_at: new Date().toISOString()
                     }).eq('id', profileId);
-                    hasPendingChanges.current = false;
-                    console.log('[CardDesigner] Pending changes synced');
+
+                    if (error) {
+                        console.error('[CardDesigner] Sync failed:', error);
+                    } else {
+                        hasPendingChanges.current = false;
+                        console.log('[CardDesigner] Pending changes synced');
+                    }
                 } else {
                     console.warn('[CardDesigner] No valid session - skipping sync');
                 }
@@ -585,11 +595,13 @@ const CardDesignerPage: React.FC = () => {
             if (!currentFolder) throw new Error("Storage folder path is missing.");
 
             // Save JSON data only (instant, no html-to-image dependency)
-            await client.from('profiles').update({
+            const { error: saveError } = await client.from('profiles').update({
                 card_type: cardType,
                 design_data: { front: frontData, back: backData, type: cardType },
                 updated_at: new Date().toISOString()
             }).eq('id', currentProfileId);
+
+            if (saveError) throw saveError;
 
             // Update status (kept true)
             setSaveStatus("Generating print-ready images...");
@@ -624,7 +636,8 @@ const CardDesignerPage: React.FC = () => {
 
             if (Object.keys(imageUpdates).length > 0) {
                 const client = getSupabase();
-                await client.from('profiles').update(imageUpdates).eq('id', currentProfileId);
+                const { error: imgUpdateError } = await client.from('profiles').update(imageUpdates).eq('id', currentProfileId);
+                if (imgUpdateError) throw imgUpdateError;
             }
 
             if (mountedRef.current) {
