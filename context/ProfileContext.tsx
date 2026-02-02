@@ -111,30 +111,80 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Handle Tab Visibility Changes (Fix for Background Throttling)
   useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        // console.log("Tab active: Validating session...");
-        try {
-          const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let isRefreshing = false;
 
-          if (error || !currentSession) {
-            // console.log("Session potentially stale, forcing refresh...");
-            const { data, error: refreshError } = await supabase.auth.refreshSession();
-            if (refreshError) throw refreshError;
-            if (data.session) setSession(data.session);
-          } else {
-            // Optional: If we have a session but local state is null, sync it
-            // checks against current closure 'session' might be stale, but setSession is safe
-          }
-        } catch (err) {
-          console.error("Session recovery failed:", err);
-          // Don't force sign out here, let the user try to interact or the auth listener handle it
-        }
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return;
+
+      // Prevent concurrent refreshes
+      if (isRefreshing) {
+        console.log("Session refresh already in progress, skipping...");
+        return;
       }
+
+      // Debounce rapid tab switches
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+
+      debounceTimer = setTimeout(async () => {
+        if (!mounted.current) return;
+
+        isRefreshing = true;
+
+        try {
+          // Set a timeout to prevent hanging
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Session refresh timeout")), 5000);
+          });
+
+          const sessionPromise = supabase.auth.getSession();
+
+          const { data: { session: currentSession }, error } = await Promise.race([
+            sessionPromise,
+            timeoutPromise
+          ]) as Awaited<typeof sessionPromise>;
+
+          if (!mounted.current) return;
+
+          if (error) {
+            console.warn("Session check error:", error.message);
+            return;
+          }
+
+          // If session is stale or missing, try to refresh
+          if (!currentSession) {
+            const refreshPromise = supabase.auth.refreshSession();
+            const { data, error: refreshError } = await Promise.race([
+              refreshPromise,
+              timeoutPromise
+            ]) as Awaited<typeof refreshPromise>;
+
+            if (refreshError) {
+              console.warn("Session refresh failed:", refreshError.message);
+            } else if (data.session && mounted.current) {
+              setSession(data.session);
+            }
+          }
+        } catch (err: any) {
+          // Timeout or other error - don't freeze, just log
+          if (err.message !== "Session refresh timeout") {
+            console.error("Session recovery error:", err);
+          } else {
+            console.warn("Session refresh timed out - continuing without refresh");
+          }
+        } finally {
+          isRefreshing = false;
+        }
+      }, 300); // 300ms debounce
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const refreshProfile = useCallback(async () => {
