@@ -109,33 +109,79 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [fetchProfile]);
 
+  // Helper function to refresh session with retry logic
+  const refreshSessionWithRetry = useCallback(async (maxRetries = 3): Promise<Session | null> => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (!error && data.session) {
+          return data.session;
+        }
+        if (error) {
+          console.warn(`Session refresh attempt ${i + 1} failed:`, error.message);
+        }
+      } catch (err) {
+        console.warn(`Session refresh attempt ${i + 1} threw:`, err);
+      }
+
+      // Don't wait after the last attempt
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
+      }
+    }
+    return null;
+  }, []);
+
   // Handle Tab Visibility Changes (Fix for Background Throttling)
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        // console.log("Tab active: Validating session...");
+      if (document.visibilityState === 'visible' && mounted.current) {
+        console.log("Tab active: Validating session...");
         try {
-          const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+          // Always get fresh session from Supabase
+          const { data: { session: freshSession }, error } = await supabase.auth.getSession();
 
-          if (error || !currentSession) {
-            // console.log("Session potentially stale, forcing refresh...");
-            const { data, error: refreshError } = await supabase.auth.refreshSession();
-            if (refreshError) throw refreshError;
-            if (data.session) setSession(data.session);
+          if (error) {
+            console.error("Error getting session:", error);
+            throw error;
+          }
+
+          if (freshSession) {
+            // Always sync session state and re-fetch profile
+            if (mounted.current) {
+              setSession(freshSession);
+              await fetchProfile(freshSession);
+            }
           } else {
-            // Optional: If we have a session but local state is null, sync it
-            // checks against current closure 'session' might be stale, but setSession is safe
+            // No session from getSession - try refresh with retry
+            console.log("No session found, attempting refresh...");
+            const refreshedSession = await refreshSessionWithRetry();
+
+            if (mounted.current) {
+              if (refreshedSession) {
+                setSession(refreshedSession);
+                await fetchProfile(refreshedSession);
+              } else {
+                // No session at all - user needs to log in again
+                console.log("Session recovery failed - user needs to re-authenticate");
+                setSession(null);
+                setProfile(null);
+              }
+            }
           }
         } catch (err) {
           console.error("Session recovery failed:", err);
-          // Don't force sign out here, let the user try to interact or the auth listener handle it
+          if (mounted.current) {
+            // Set error state so user gets feedback
+            setError(err as Error);
+          }
         }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
+  }, [fetchProfile, refreshSessionWithRetry]);
 
   const refreshProfile = useCallback(async () => {
     if (session) {

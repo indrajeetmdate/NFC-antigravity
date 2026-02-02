@@ -18,7 +18,7 @@ const initialFrontData: CardFaceData = {
     texts: [],
     images: [
         { id: 'logo', url: null, x: 50, y: 65, scale: 1, width: 112, height: 112 },
-        { id: 'qr', url: 'https://quickchart.io/qr?text=https://canopycorp.in&size=300&dark=d7ba52&light=00000000&margin=0', x: 10, y: 85, scale: 1, width: 64, height: 64 },
+        { id: 'qr', url: null, x: 10, y: 85, scale: 1, width: 64, height: 64 }, // Will be generated for user's profile
     ],
     backgroundColor: '#000000',
     backgroundImageUrl: null,

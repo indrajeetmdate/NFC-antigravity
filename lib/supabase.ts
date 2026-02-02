@@ -10,6 +10,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    flowType: 'pkce', // More secure flow, better for mobile
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storageKey: 'nfc-canopy-auth-token',
   },
 });
 
