@@ -158,7 +158,7 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractiv
           This digital profile is currently inactive. If you are the owner, please renew your subscription to reactivate it.
         </p>
         <a
-          href="https://canopycorp.in/login"
+          href="https://canopycorp.in/#/login"
           className="px-8 py-3.5 bg-gradient-to-r from-zinc-800 to-zinc-700 hover:from-zinc-700 hover:to-zinc-600 text-white rounded-xl font-bold transition-all shadow-lg border border-zinc-600/50"
         >
           Renew Subscription
@@ -216,7 +216,7 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractiv
           <p className="text-[10px] font-medium tracking-wide uppercase">
             Privilege Expiring in <span className="text-white font-bold">{daysUntilExpiry} Days</span>
             <span className="mx-2 text-zinc-600">|</span>
-            <a href="https://canopycorp.in/login" className="text-gold hover:underline">Renew</a>
+            <a href="https://canopycorp.in/#/login" className="text-gold hover:underline">Renew</a>
           </p>
         </div>
       )}
