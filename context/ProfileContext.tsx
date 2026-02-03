@@ -29,12 +29,26 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Track unsubscribe function for auth listener
   const authUnsubscribeRef = useRef<(() => void) | null>(null);
 
-  // Fetch profile helper - always uses current Supabase client
+  // Single-flight guard for profile fetching using fetch ID
+  const fetchIdRef = useRef(0);
+  const isFetchingRef = useRef(false);
+
+  // Fetch profile helper - with single-flight guard
   const fetchProfile = useCallback(async (currentSession: Session | null) => {
     if (!currentSession?.user?.id) {
       if (mounted.current) setProfile(null);
       return;
     }
+
+    // **SINGLE-FLIGHT GUARD: Increment fetch ID**
+    const currentFetchId = ++fetchIdRef.current;
+
+    // Log if we're cancelling a previous fetch
+    if (isFetchingRef.current) {
+      console.log('[ProfileContext] New profile fetch started (previous fetch will be ignored)');
+    }
+
+    isFetchingRef.current = true;
 
     if (mounted.current) setError(null);
 
@@ -46,6 +60,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .eq('user_id', currentSession.user.id)
         .maybeSingle();
 
+      // **STALE CHECK: Ignore results if this is no longer the latest fetch**
+      if (currentFetchId !== fetchIdRef.current) {
+        console.log('[ProfileContext] Profile fetch result ignored (stale - newer fetch in progress)');
+        return; // Silently return, not an error
+      }
+
       if (apiError) {
         throw apiError;
       }
@@ -54,8 +74,25 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setProfile(data as Profile | null);
       }
     } catch (err: any) {
-      console.error('Error fetching profile:', err);
+      // **STALE CHECK: Ignore errors if this is no longer the latest fetch**
+      if (currentFetchId !== fetchIdRef.current) {
+        console.log('[ProfileContext] Profile fetch error ignored (stale)');
+        return; // Silently return
+      }
+
+      // **IGNORE AbortError - this is expected behavior**
+      if (err.name === 'AbortError') {
+        console.log('[ProfileContext] Profile fetch aborted (expected - single-flight)');
+        return; // Silently return
+      }
+
+      console.error('[ProfileContext] Error fetching profile:', err);
       if (mounted.current) setError(err);
+    } finally {
+      // Clear fetching flag only if this was the latest fetch
+      if (currentFetchId === fetchIdRef.current) {
+        isFetchingRef.current = false;
+      }
     }
   }, []);
 
