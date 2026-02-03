@@ -6,6 +6,8 @@ interface ReAuthContextType {
     needsLogin: boolean;
     preservedRoute: string | null;
     triggerReAuth: () => void;
+    triggerBackgroundReAuth: () => void;
+    markBackgroundReAuthFailed: () => void;
     dismissReAuth: () => void;
     markReAuthSuccess: () => void;
 }
@@ -17,6 +19,7 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [needsLogin, setNeedsLogin] = useState(false);
     const [preservedRoute, setPreservedRoute] = useState<string | null>(null);
     const attemptedThisSession = useRef(false);
+    const backgroundReAuthTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const location = useLocation();
 
     // Reset attempt flag when user navigates (explicit navigation, not re-auth)
@@ -26,9 +29,18 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
     }, [location.pathname, isReconnecting, needsLogin]);
 
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (backgroundReAuthTimeoutRef.current) {
+                clearTimeout(backgroundReAuthTimeoutRef.current);
+            }
+        };
+    }, []);
+
     /**
-     * Triggered when session is lost after client recreation.
-     * Starts the re-auth flow: shows overlay, preserves route, attempts silent re-auth.
+     * Triggered for immediate re-auth (when getSession() returns null).
+     * Shows overlay briefly, then modal if background re-auth doesn't complete.
      */
     const triggerReAuth = useCallback(() => {
         // Prevent multiple attempts in the same session
@@ -37,7 +49,7 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             return;
         }
 
-        console.log('[ReAuth] Triggering re-auth flow...');
+        console.log('[ReAuth] Triggering immediate re-auth flow...');
         attemptedThisSession.current = true;
 
         // Preserve current route (exclude login/signup pages)
@@ -50,15 +62,38 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setIsReconnecting(true);
 
         // The silent re-auth attempt will be handled by ProfileContext
-        // After a timeout, if still reconnecting, show login modal
-        setTimeout(() => {
-            if (isReconnecting) {
-                console.log('[ReAuth] Silent re-auth timed out, showing login modal...');
-                setIsReconnecting(false);
-                setNeedsLogin(true);
-            }
-        }, 3000); // 3 second timeout for silent re-auth
-    }, [location.pathname, isReconnecting]);
+        // After a short timeout, show login modal (background re-auth should complete before this)
+        backgroundReAuthTimeoutRef.current = setTimeout(() => {
+            console.log('[ReAuth] Background re-auth timed out, showing login modal...');
+            setIsReconnecting(false);
+            setNeedsLogin(true);
+        }, 2000); // 2 second timeout for background re-auth
+    }, [location.pathname]);
+
+    /**
+     * Triggered when getSession() succeeds but we want to refresh in background.
+     * Does NOT show overlay - UI is already restored.
+     */
+    const triggerBackgroundReAuth = useCallback(() => {
+        console.log('[ReAuth] Starting background re-auth (non-blocking)...');
+        // Don't set isReconnecting - UI already restored
+        // ProfileContext will call markBackgroundReAuthFailed if refresh fails
+    }, []);
+
+    /**
+     * Called when background re-auth fails.
+     * Does NOT show modal immediately - only if user tries to make authenticated request.
+     */
+    const markBackgroundReAuthFailed = useCallback(() => {
+        console.log('[ReAuth] Background re-auth failed - session may be stale');
+        // Clear timeout if it exists
+        if (backgroundReAuthTimeoutRef.current) {
+            clearTimeout(backgroundReAuthTimeoutRef.current);
+            backgroundReAuthTimeoutRef.current = null;
+        }
+        // Don't show modal yet - wait for actual auth failure
+        setIsReconnecting(false);
+    }, []);
 
     /**
      * Called when silent re-auth succeeds.
@@ -66,6 +101,11 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
      */
     const markReAuthSuccess = useCallback(() => {
         console.log('[ReAuth] Re-auth successful');
+        // Clear timeout if it exists
+        if (backgroundReAuthTimeoutRef.current) {
+            clearTimeout(backgroundReAuthTimeoutRef.current);
+            backgroundReAuthTimeoutRef.current = null;
+        }
         setIsReconnecting(false);
         setNeedsLogin(false);
         // Don't clear preservedRoute here - let the navigation happen naturally
@@ -77,6 +117,10 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
      */
     const dismissReAuth = useCallback(() => {
         console.log('[ReAuth] Re-auth dismissed by user');
+        if (backgroundReAuthTimeoutRef.current) {
+            clearTimeout(backgroundReAuthTimeoutRef.current);
+            backgroundReAuthTimeoutRef.current = null;
+        }
         setIsReconnecting(false);
         setNeedsLogin(false);
         setPreservedRoute(null);
@@ -90,6 +134,8 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 needsLogin,
                 preservedRoute,
                 triggerReAuth,
+                triggerBackgroundReAuth,
+                markBackgroundReAuthFailed,
                 dismissReAuth,
                 markReAuthSuccess,
             }}

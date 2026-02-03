@@ -165,27 +165,63 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     onSessionLost: async () => {
       if (!mounted.current) return;
 
-      console.log('[ProfileContext] Session lost after client recreation');
+      console.log('[ProfileContext] Session check failed after client recreation');
       setIsReconnecting(false);
 
-      // **NEW: Trigger re-auth flow instead of allowing redirect**
-      // Attempt silent re-auth using existing refresh token
+      // **OPTIMIZED: First try local getSession() for instant restoration**
       const client = getSupabase();
-      const { data: { session: recoveredSession }, error: refreshError } = await client.auth.refreshSession();
+      const { data: { session: localSession }, error: localError } = await client.auth.getSession();
 
-      if (recoveredSession) {
-        console.log('[ProfileContext] Silent re-auth succeeded');
-        setSession(recoveredSession);
-        if (recoveredSession.user?.id) {
-          await fetchProfile(recoveredSession);
+      if (localSession) {
+        // SUCCESS: Session exists in local storage - restore immediately (no network call)
+        console.log('[ProfileContext] Restored session from local storage (instant)');
+        setSession(localSession);
+        if (localSession.user?.id) {
+          await fetchProfile(localSession);
         }
-        reAuthContext.markReAuthSuccess();
+
+        // **Background re-auth: Refresh token in background to ensure validity**
+        // This is non-blocking - UI is already restored
+        console.log('[ProfileContext] Starting background token refresh...');
+        reAuthContext.triggerBackgroundReAuth();
+
+        // Execute refresh in background (don't await - let it run async)
+        client.auth.refreshSession().then(({ data, error }) => {
+          if (!mounted.current) return;
+
+          if (data.session) {
+            console.log('[ProfileContext] Background token refresh succeeded');
+            setSession(data.session);
+            reAuthContext.markReAuthSuccess();
+          } else {
+            console.warn('[ProfileContext] Background token refresh failed:', error);
+            reAuthContext.markBackgroundReAuthFailed();
+            // Don't clear session or show modal - let user continue with stale session
+            // Modal will appear on next authenticated request failure
+          }
+        }).catch((err) => {
+          console.error('[ProfileContext] Background refresh error:', err);
+          reAuthContext.markBackgroundReAuthFailed();
+        });
+
       } else {
-        console.log('[ProfileContext] Silent re-auth failed, triggering re-auth UI', refreshError);
-        // Clear session and trigger re-auth modal
+        // FAILURE: No local session - must trigger full re-auth flow
+        console.log('[ProfileContext] No local session available, triggering re-auth UI', localError);
         setSession(null);
         setProfile(null);
         reAuthContext.triggerReAuth();
+
+        // Attempt refreshSession() as fallback (this will likely fail but worth trying)
+        const { data: { session: refreshedSession } } = await client.auth.refreshSession();
+
+        if (refreshedSession && mounted.current) {
+          console.log('[ProfileContext] Fallback refresh succeeded');
+          setSession(refreshedSession);
+          if (refreshedSession.user?.id) {
+            await fetchProfile(refreshedSession);
+          }
+          reAuthContext.markReAuthSuccess();
+        }
       }
     },
     onVisibilityChange: (isVisible) => {
