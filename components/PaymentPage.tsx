@@ -153,15 +153,26 @@ const PaymentPage: React.FC = () => {
             if (error) throw error;
 
             // OPTIMISTIC UPDATE FOR RENEWAL:
-            // Explicitly set subscription_end_date to 1 year from now.
-            // This ensures instant access restoration even if backend RPC is slow or missing the update.
-            const oneYearFromNow = new Date();
-            oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+            // Calculate new end date.
+            // If currently active, add 1 year to existing end date.
+            // If expired or new, add 1 year to NOW.
+            const now = new Date();
+            let startDate = now;
+            if (profile.subscription_end_date) {
+                const currentEnd = new Date(profile.subscription_end_date);
+                if (currentEnd > now) {
+                    startDate = currentEnd;
+                }
+            }
+
+            const newEndDate = new Date(startDate);
+            newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+
 
             await getSupabase()
                 .from('profiles')
                 .update({
-                    subscription_end_date: oneYearFromNow.toISOString()
+                    subscription_end_date: newEndDate.toISOString()
                 })
                 .eq('id', profile.id);
 
@@ -244,7 +255,11 @@ const PaymentPage: React.FC = () => {
                         </div>
 
                         {(() => {
-                            const isRenewal = !!profile?.upi_transaction_id;
+                            // Check for renewal eligibility:
+                            // 1. Has transaction ID (Active/Recently Expired)
+                            // 2. OR Has subscription_end_date (Expired but was a subscriber)
+                            const isRenewal = !!profile?.upi_transaction_id || !!profile?.subscription_end_date;
+
                             const amount = isRenewal ? 299 : 549;
                             const strikeAmount = isRenewal ? 549 : 749;
                             const upiLink = `upi://pay?pa=canopycorp@ybl&pn=CANOPY%20CORP&cu=INR&am=${amount}`;

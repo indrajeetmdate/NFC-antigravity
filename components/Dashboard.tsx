@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useProfile } from '../context/ProfileContext';
+import { getSupabase } from '../lib/supabase';
 
 const Dashboard: React.FC = () => {
   const { profile, loading, error, refreshProfile, signOut } = useProfile();
@@ -10,6 +11,40 @@ const Dashboard: React.FC = () => {
   // If user is not logged in, ProfileProvider handles fetching, 
   // but we might want to redirect if not found after loading.
   // Although `Layout` handles auth state mostly, let's be safe.
+
+  useEffect(() => {
+    if (!loading && profile) {
+      // Check for expiry cleanup
+      const isExpired = (() => {
+        if (profile.subscription_end_date) {
+          const end = new Date(profile.subscription_end_date);
+          return end < new Date();
+        } else if (profile.upi_transaction_id && profile.created_at) {
+          // Fallback: If no date but paid, check 1 year from created
+          const created = new Date(profile.created_at);
+          const end = new Date(created);
+          end.setDate(end.getDate() + 365);
+          return end < new Date();
+        }
+        return false;
+      })();
+
+      if (isExpired && profile.upi_transaction_id) {
+        console.log("Subscription expired. Cleaning up transaction ID.");
+        getSupabase()
+          .from('profiles')
+          .update({ upi_transaction_id: null })
+          .eq('id', profile.id)
+          .then(({ error }) => {
+            if (!error) {
+              refreshProfile();
+            } else {
+              console.error("Failed to cleanup expired transaction ID", error);
+            }
+          });
+      }
+    }
+  }, [loading, profile, refreshProfile]);
 
   if (loading) {
     return (
