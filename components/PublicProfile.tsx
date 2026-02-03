@@ -8,9 +8,10 @@ import { generateVCardContent } from '../utils/vcardGenerator';
 
 interface PublicProfileProps {
   profileData?: Partial<Profile> | null;
+  isInteractive?: boolean; // When false, links/buttons are not clickable (preview mode)
 }
 
-const PublicProfile: React.FC<PublicProfileProps> = ({ profileData }) => {
+const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractive = true }) => {
   const { slug } = useParams<{ slug: string }>();
   const [profile, setProfile] = useState<Partial<Profile> | null>(profileData || null);
   const [loading, setLoading] = useState(!profileData);
@@ -196,61 +197,106 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData }) => {
         )}
 
         <div className="mt-8 w-full max-w-md space-y-4">
-          <a
-            href={mainButtonUrl}
-            target={isStandie ? "_blank" : undefined}
-            rel={isStandie ? "noopener noreferrer" : undefined}
-            className={`block w-full py-3.5 px-4 font-bold text-center transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex items-center justify-center gap-2 ${mainBtnStyle.shape} ${mainBtnStyle.shadow ? 'shadow-lg hover:shadow-xl' : ''}`}
-            style={{
-              backgroundColor: mainBtnStyle.backgroundColor,
-              color: mainBtnStyle.textColor,
-              cursor: 'pointer'
-            }}
-            onClick={handleDownloadVCard}
-            title={isStandie ? "Click to open link" : "Click to download contact card"}
-          >
-            {profile.custom_button_text || (isStandie ? 'Open Link' : 'Save Contact')}
-          </a>
+          {isInteractive ? (
+            <a
+              href={mainButtonUrl}
+              target={isStandie ? "_blank" : undefined}
+              rel={isStandie ? "noopener noreferrer" : undefined}
+              className={`block w-full py-3.5 px-4 font-bold text-center transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex items-center justify-center gap-2 ${mainBtnStyle.shape} ${mainBtnStyle.shadow ? 'shadow-lg hover:shadow-xl' : ''}`}
+              style={{
+                backgroundColor: mainBtnStyle.backgroundColor,
+                color: mainBtnStyle.textColor,
+                cursor: 'pointer'
+              }}
+              onClick={handleDownloadVCard}
+              title={isStandie ? "Click to open link" : "Click to download contact card"}
+            >
+              {profile.custom_button_text || (isStandie ? 'Open Link' : 'Save Contact')}
+            </a>
+          ) : (
+            <div
+              className={`block w-full py-3.5 px-4 font-bold text-center flex items-center justify-center gap-2 ${mainBtnStyle.shape} ${mainBtnStyle.shadow ? 'shadow-lg' : ''}`}
+              style={{
+                backgroundColor: mainBtnStyle.backgroundColor,
+                color: mainBtnStyle.textColor,
+                cursor: 'default'
+              }}
+            >
+              {profile.custom_button_text || (isStandie ? 'Open Link' : 'Save Contact')}
+            </div>
+          )}
 
           {actionButtons.map((btn: CustomButtonElement) => (
-            <a
-              key={btn.id}
-              href={btn.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`block w-full py-3 px-4 font-semibold text-center transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex items-center justify-center gap-2 ${btn.style.shape} ${btn.style.shadow ? 'shadow-md hover:shadow-lg' : ''} ${btn.style.border ? 'border border-white/20' : ''}`}
-              style={{
-                backgroundColor: btn.style.backgroundColor,
-                color: btn.style.textColor,
-              }}
-              title={`Click to open: ${btn.label}`}
-            >
-              {btn.label}
-            </a>
+            isInteractive ? (
+              <a
+                key={btn.id}
+                href={btn.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`block w-full py-3 px-4 font-semibold text-center transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex items-center justify-center gap-2 ${btn.style.shape} ${btn.style.shadow ? 'shadow-md hover:shadow-lg' : ''} ${btn.style.border ? 'border border-white/20' : ''}`}
+                style={{
+                  backgroundColor: btn.style.backgroundColor,
+                  color: btn.style.textColor,
+                }}
+                title={`Click to open: ${btn.label}`}
+              >
+                {btn.label}
+              </a>
+            ) : (
+              <div
+                key={btn.id}
+                className={`block w-full py-3 px-4 font-semibold text-center flex items-center justify-center gap-2 ${btn.style.shape} ${btn.style.shadow ? 'shadow-md' : ''} ${btn.style.border ? 'border border-white/20' : ''}`}
+                style={{
+                  backgroundColor: btn.style.backgroundColor,
+                  color: btn.style.textColor,
+                  cursor: 'default'
+                }}
+              >
+                {btn.label}
+              </div>
+            )
           ))}
         </div>
 
         {socialButtons.length > 0 && (
           <div className="mt-8 flex flex-wrap justify-center gap-4 w-full max-w-md">
             {socialButtons.map((btn: CustomButtonElement) => (
-              <a
-                key={btn.id}
-                href={btn.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-12 h-12 rounded-full flex items-center justify-center bg-zinc-800/80 hover:scale-125 active:scale-95 transition-all duration-300 shadow-lg hover:shadow-2xl animate-pulse-subtle"
-                style={{
-                  backgroundColor: btn.style.backgroundColor,
-                  color: btn.style.textColor
-                }}
-                title={`Open ${btn.label}`}
-              >
-                {btn.iconUrl ? (
-                  <img src={btn.iconUrl} alt={btn.label} className="w-full h-full object-cover rounded-full" />
-                ) : (
-                  <div className="w-6 h-6" dangerouslySetInnerHTML={{ __html: SOCIAL_ICONS[btn.subtype || 'website'] || SOCIAL_ICONS['custom'] }} />
-                )}
-              </a>
+              isInteractive ? (
+                <a
+                  key={btn.id}
+                  href={btn.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 rounded-full flex items-center justify-center bg-zinc-800/80 hover:scale-125 active:scale-95 transition-all duration-300 shadow-lg hover:shadow-2xl animate-pulse-subtle"
+                  style={{
+                    backgroundColor: btn.style.backgroundColor,
+                    color: btn.style.textColor
+                  }}
+                  title={`Open ${btn.label}`}
+                >
+                  {btn.iconUrl ? (
+                    <img src={btn.iconUrl} alt={btn.label} className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <div className="w-6 h-6" dangerouslySetInnerHTML={{ __html: SOCIAL_ICONS[btn.subtype || 'website'] || SOCIAL_ICONS['custom'] }} />
+                  )}
+                </a>
+              ) : (
+                <div
+                  key={btn.id}
+                  className="w-12 h-12 rounded-full flex items-center justify-center bg-zinc-800/80 shadow-lg"
+                  style={{
+                    backgroundColor: btn.style.backgroundColor,
+                    color: btn.style.textColor,
+                    cursor: 'default'
+                  }}
+                >
+                  {btn.iconUrl ? (
+                    <img src={btn.iconUrl} alt={btn.label} className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <div className="w-6 h-6" dangerouslySetInnerHTML={{ __html: SOCIAL_ICONS[btn.subtype || 'website'] || SOCIAL_ICONS['custom'] }} />
+                  )}
+                </div>
+              )
             ))}
           </div>
         )}

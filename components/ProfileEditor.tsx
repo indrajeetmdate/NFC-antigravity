@@ -88,6 +88,7 @@ const ProfileEditor: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'DETAILS' | 'LINKS' | 'APPEARANCE' | null>('DETAILS');
     const [showSocialDropdown, setShowSocialDropdown] = useState(false);
+    const [isLinksInteractive, setIsLinksInteractive] = useState(false); // Toggle for preview interactivity
 
     // Editing state
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -514,6 +515,20 @@ const ProfileEditor: React.FC = () => {
                             <div className="space-y-6 animate-fade-in pb-10">
                                 <PanelHeader title="Buttons & Links" onClose={() => setActiveTab(null)} />
 
+                                {/* Interactive Links Toggle */}
+                                <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700 flex items-center justify-between">
+                                    <div>
+                                        <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wide">Interactive Preview</h4>
+                                        <p className="text-[10px] text-zinc-500 mt-0.5">When on, buttons and links are clickable in preview</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsLinksInteractive(!isLinksInteractive)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isLinksInteractive ? 'bg-gold' : 'bg-zinc-700'}`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isLinksInteractive ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+
                                 {/* Primary Action Button Config */}
                                 <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700 mb-4">
                                     <h4 className="text-xs font-bold text-gold uppercase tracking-wide mb-2">
@@ -805,7 +820,7 @@ const ProfileEditor: React.FC = () => {
                 <div className="flex-1 overflow-y-auto scrollbar-hide pb-32 md:pb-0">
                     <div className="min-h-full py-8 flex justify-center">
                         <div className={`transition-all duration-300 ${previewMode === 'mobile' ? 'w-full max-w-md' : 'w-full'}`}>
-                            <PublicProfile profileData={formData} />
+                            <PublicProfile profileData={formData} isInteractive={isLinksInteractive} />
                         </div>
                     </div>
                 </div>

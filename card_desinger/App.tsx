@@ -533,6 +533,12 @@ const CardDesignerPage: React.FC = () => {
     const handleSaveAndPrint = useCallback(async (sideToSave?: 'front' | 'back') => {
         if (isSaving) return;
 
+        // Clear selection BEFORE saving to prevent golden highlight from being captured
+        setSelectedElement(null);
+
+        // Small delay to ensure UI updates before capture
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         setIsSaving(true);
         setSaveStatus('Saving design...');
 
@@ -738,8 +744,9 @@ const CardDesignerPage: React.FC = () => {
                                 onDragStart={(type, id, e) => handleDragStart('front', type, id, e)}
                                 width={CARD_WIDTH}
                                 height={CARD_HEIGHT}
-                                selectedElementId={selectedElement?.id || null}
-                                onSelect={(type, id) => setSelectedElement({ type, id })}
+                                selectedElementId={isDesignModeActive ? (selectedElement?.id || null) : null}
+                                onSelect={(type, id) => isDesignModeActive && setSelectedElement({ type, id })}
+                                isDesignModeActive={isDesignModeActive}
                             />
                         </div>
                     </div>
@@ -753,8 +760,9 @@ const CardDesignerPage: React.FC = () => {
                                 onDragStart={(type, id, e) => handleDragStart('back', type, id, e)}
                                 width={CARD_WIDTH}
                                 height={CARD_HEIGHT}
-                                selectedElementId={selectedElement?.id || null}
-                                onSelect={(type, id) => setSelectedElement({ type, id })}
+                                selectedElementId={isDesignModeActive ? (selectedElement?.id || null) : null}
+                                onSelect={(type, id) => isDesignModeActive && setSelectedElement({ type, id })}
+                                isDesignModeActive={isDesignModeActive}
                             />
                         </div>
                     </div>
