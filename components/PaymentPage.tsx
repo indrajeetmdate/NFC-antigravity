@@ -28,8 +28,30 @@ const PaymentPage: React.FC = () => {
                 navigate('/login');
                 return;
             }
+
+            // Check if subscription is valid (not expired)
+            // If valid, redirect to dashboard. If expired, allow payment (renewal).
+            let isSubscriptionValid = false;
             if (profile.upi_transaction_id) {
-                showToast("You have already submitted a payment. Redirecting to dashboard...", "info");
+                // If they have paid, check if expired
+                if (profile.subscription_end_date) {
+                    const end = new Date(profile.subscription_end_date);
+                    if (end > new Date()) {
+                        isSubscriptionValid = true;
+                    }
+                } else {
+                    // Fallback: If no date but has transaction_id, assume valid for 1 year from created_at
+                    const created = new Date(profile.created_at);
+                    const end = new Date(created);
+                    end.setDate(end.getDate() + 365);
+                    if (end > new Date()) {
+                        isSubscriptionValid = true;
+                    }
+                }
+            }
+
+            if (isSubscriptionValid) {
+                showToast("You have an active subscription. Redirecting to dashboard...", "info");
                 setTimeout(() => navigate('/dashboard'), 1500);
             }
             // Pre-fill address if available
@@ -207,31 +229,42 @@ const PaymentPage: React.FC = () => {
                             />
                         </div>
 
-                        <div className="text-center mb-6">
-                            <div className="inline-block mb-2 px-3 py-1 bg-gold/10 rounded-full border border-gold/30">
-                                <span className="text-xs font-bold text-gold uppercase tracking-wider">Promotional Offer</span>
-                            </div>
-                            <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-1">Total Payable</p>
-                            <div className="flex flex-col items-center">
-                                <div className="flex items-baseline justify-center gap-3">
-                                    <span className="text-4xl font-bold text-white">₹549 <span className="text-sm font-normal text-zinc-400">/ year</span></span>
-                                    <span className="text-lg text-zinc-600 line-through decoration-2">₹749</span>
-                                </div>
-                                <p className="text-[10px] text-zinc-500 mt-1 font-medium">(Renews at ₹299 / year)</p>
-                            </div>
-                        </div>
+                        {(() => {
+                            const isRenewal = !!profile?.upi_transaction_id;
+                            const amount = isRenewal ? 299 : 549;
+                            const strikeAmount = isRenewal ? 549 : 749;
+                            const upiLink = `upi://pay?pa=canopycorp@ybl&pn=CANOPY%20CORP&cu=INR&am=${amount}`;
 
-                        <a
-                            href="upi://pay?pa=canopycorp@ybl&pn=CANOPY%20CORP&cu=INR&am=549"
-                            className="w-full max-w-xs bg-zinc-800 hover:bg-zinc-700 text-white py-3 px-4 rounded-lg border border-zinc-700 transition-all duration-200 flex items-center justify-center gap-3 group"
-                        >
-                            <span className="bg-zinc-900 p-1.5 rounded-md group-hover:text-gold transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                </svg>
-                            </span>
-                            <span className="font-semibold group-hover:text-gold transition-colors">Pay via UPI App</span>
-                        </a>
+                            return (
+                                <>
+                                    <div className="text-center mb-6">
+                                        <div className="inline-block mb-2 px-3 py-1 bg-gold/10 rounded-full border border-gold/30">
+                                            <span className="text-xs font-bold text-gold uppercase tracking-wider">{isRenewal ? 'Renewal Offer' : 'Promotional Offer'}</span>
+                                        </div>
+                                        <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-1">Total Payable</p>
+                                        <div className="flex flex-col items-center">
+                                            <div className="flex items-baseline justify-center gap-3">
+                                                <span className="text-4xl font-bold text-white">₹{amount} <span className="text-sm font-normal text-zinc-400">/ year</span></span>
+                                                <span className="text-lg text-zinc-600 line-through decoration-2">₹{strikeAmount}</span>
+                                            </div>
+                                            {!isRenewal && <p className="text-[10px] text-zinc-500 mt-1 font-medium">(Renews at ₹299 / year)</p>}
+                                        </div>
+                                    </div>
+
+                                    <a
+                                        href={upiLink}
+                                        className="w-full max-w-xs bg-zinc-800 hover:bg-zinc-700 text-white py-3 px-4 rounded-lg border border-zinc-700 transition-all duration-200 flex items-center justify-center gap-3 group"
+                                    >
+                                        <span className="bg-zinc-900 p-1.5 rounded-md group-hover:text-gold transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                            </svg>
+                                        </span>
+                                        <span className="font-semibold group-hover:text-gold transition-colors">Pay ₹{amount} via UPI App</span>
+                                    </a>
+                                </>
+                            );
+                        })()}
                     </div>
 
                     {/* Right Column: Details Form */}

@@ -54,9 +54,9 @@ const Home: React.FC = () => {
 
         {/* 2. Offer & CTA */}
         <div className="flex flex-col items-center justify-center gap-6 mb-16 animate-fade-in-up">
-          <div className="text-xl font-medium text-yellow-300 bg-zinc-900/90 px-6 py-2 rounded-full border border-gold/40 shadow-[0_0_15px_rgba(215,186,82,0.2)] backdrop-blur-sm">
-            Promotional Offer: <span className="line-through text-zinc-500 mr-2">₹749</span>
-            <span className="text-gold font-bold text-2xl">₹549 / year</span>
+          <div className="text-xl font-medium text-yellow-300 bg-zinc-900/90 px-6 py-2 rounded-full border border-gold/40 shadow-[0_0_15px_rgba(215,186,82,0.2)] backdrop-blur-sm whitespace-nowrap">
+            Promotional Offer: <span className="line-through text-zinc-500 mr-2 text-base">₹749</span>
+            <span className="text-gold font-bold text-2xl">₹549<span className="text-base font-medium text-yellow-200/70">/year</span></span>
           </div>
 
           <Link to="/signup" className="inline-flex items-center justify-center h-14 px-12 text-lg font-bold text-black bg-gold rounded-full hover:bg-gold-600 transition-all shadow-[0_0_20px_rgba(215,186,82,0.4)] hover:shadow-[0_0_30px_rgba(215,186,82,0.6)] hover:scale-105">

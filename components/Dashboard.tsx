@@ -164,20 +164,41 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Status Pill */}
-              {profile.upi_transaction_id ? (
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-900/10 border border-green-500/20 rounded-full shadow-inner">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                  </span>
-                  <span className="text-[10px] font-bold text-green-400 tracking-wide uppercase">Active & Paid</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-900/10 border border-red-500/20 rounded-full shadow-inner">
-                  <span className="h-2 w-2 rounded-full bg-red-500"></span>
-                  <span className="text-[10px] font-bold text-red-400 tracking-wide uppercase">Payment Pending</span>
-                </div>
-              )}
+              {/* Status Pill */}
+              {(() => {
+                let isExpired = false;
+                if (profile.subscription_end_date) {
+                  const end = new Date(profile.subscription_end_date);
+                  if (end < new Date()) isExpired = true;
+                } else if (profile.upi_transaction_id) {
+                  // Fallback check if paid but no date
+                  if (profile.created_at) {
+                    const created = new Date(profile.created_at);
+                    const end = new Date(created);
+                    end.setDate(end.getDate() + 365);
+                    if (end < new Date()) isExpired = true;
+                  }
+                }
+
+                if (profile.upi_transaction_id && !isExpired) {
+                  return (
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-900/10 border border-green-500/20 rounded-full shadow-inner">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      </span>
+                      <span className="text-[10px] font-bold text-green-400 tracking-wide uppercase">Active & Paid</span>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-900/10 border border-red-500/20 rounded-full shadow-inner">
+                      <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                      <span className="text-[10px] font-bold text-red-400 tracking-wide uppercase">{profile.upi_transaction_id ? 'Renewal Due' : 'Payment Pending'}</span>
+                    </div>
+                  );
+                }
+              })()}
             </div>
           </div>
 
