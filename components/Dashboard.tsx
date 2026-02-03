@@ -202,20 +202,45 @@ const Dashboard: React.FC = () => {
               {/* Status Pill */}
               {(() => {
                 let isExpired = false;
+                let isWarning = false;
+                let daysLeft = 365;
+
+                // Calculate expiry logic
+                let endDate: Date | null = null;
+
                 if (profile.subscription_end_date) {
-                  const end = new Date(profile.subscription_end_date);
-                  if (end < new Date()) isExpired = true;
-                } else if (profile.upi_transaction_id) {
-                  // Fallback check if paid but no date
-                  if (profile.created_at) {
-                    const created = new Date(profile.created_at);
-                    const end = new Date(created);
-                    end.setDate(end.getDate() + 365);
-                    if (end < new Date()) isExpired = true;
+                  endDate = new Date(profile.subscription_end_date);
+                } else if (profile.upi_transaction_id && profile.created_at) {
+                  // Fallback
+                  const created = new Date(profile.created_at);
+                  endDate = new Date(created);
+                  endDate.setDate(endDate.getDate() + 365);
+                }
+
+                if (endDate) {
+                  const now = new Date();
+                  const diffTime = endDate.getTime() - now.getTime();
+                  daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                  if (daysLeft <= 0) {
+                    isExpired = true;
+                  } else if (daysLeft <= 45) {
+                    isWarning = true;
                   }
                 }
 
                 if (profile.upi_transaction_id && !isExpired) {
+                  if (isWarning) {
+                    return (
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-900/10 border border-yellow-500/20 rounded-full shadow-inner">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
+                        </span>
+                        <span className="text-[10px] font-bold text-yellow-500 tracking-wide uppercase">Expiring Soon ({daysLeft} days)</span>
+                      </div>
+                    );
+                  }
                   return (
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-900/10 border border-green-500/20 rounded-full shadow-inner">
                       <span className="relative flex h-2 w-2">
