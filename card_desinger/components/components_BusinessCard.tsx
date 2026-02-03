@@ -13,7 +13,6 @@ interface BusinessCardProps {
   height?: number; // New optional prop for dynamic height
   selectedElementId: string | null;
   onSelect: (type: 'text' | 'image', id: string) => void;
-  isDesignModeActive?: boolean; // When false, elements cannot be selected or dragged
 }
 
 const BusinessCard = React.forwardRef<HTMLDivElement, BusinessCardProps>(({
@@ -25,8 +24,7 @@ const BusinessCard = React.forwardRef<HTMLDivElement, BusinessCardProps>(({
   width = 525,
   height = 300,
   selectedElementId,
-  onSelect,
-  isDesignModeActive = true
+  onSelect
 }, ref) => {
   const { backgroundColor, nfcIconColor, texts, images, backgroundImageUrl, fullDesignUrl, urlColor } = data;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,7 +94,7 @@ const BusinessCard = React.forwardRef<HTMLDivElement, BusinessCardProps>(({
               {images.map((image) => (
                 <div
                   key={image.id}
-                  className={`absolute ${isDesignModeActive ? 'cursor-move' : 'cursor-default'} touch-none ${selectedElementId === image.id && isDesignModeActive ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50 z-20' : 'z-10'}`}
+                  className={`absolute cursor-move touch-none ${selectedElementId === image.id ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50 z-20' : 'z-10'}`}
                   style={{
                     left: `${image.x}%`,
                     top: `${image.y}%`,
@@ -106,10 +104,9 @@ const BusinessCard = React.forwardRef<HTMLDivElement, BusinessCardProps>(({
                     mixBlendMode: image.mixBlendMode || 'normal', // Handle Blend Mode
                     WebkitTapHighlightColor: 'transparent'
                   }}
-                  onMouseDown={(e) => isDesignModeActive && onDragStart('image', image.id, e)}
-                  onTouchStart={(e) => isDesignModeActive && onDragStart('image', image.id, e)}
+                  onMouseDown={(e) => onDragStart('image', image.id, e)}
+                  onTouchStart={(e) => onDragStart('image', image.id, e)}
                   onClick={(e) => {
-                    if (!isDesignModeActive) return;
                     e.stopPropagation();
                     onSelect('image', image.id);
                   }}
@@ -123,7 +120,7 @@ const BusinessCard = React.forwardRef<HTMLDivElement, BusinessCardProps>(({
               {texts.map((text) => (
                 <div
                   key={text.id}
-                  className={`absolute ${isDesignModeActive ? 'cursor-move' : 'cursor-default'} select-none whitespace-nowrap touch-none p-2 border border-transparent rounded ${selectedElementId === text.id && isDesignModeActive ? 'ring-2 ring-gold bg-black/20 z-20' : 'z-10'}`}
+                  className={`absolute cursor-move select-none whitespace-nowrap touch-none p-2 border border-transparent rounded ${selectedElementId === text.id ? 'ring-2 ring-gold bg-black/20 z-20' : 'z-10'}`}
                   style={{
                     left: `${text.x}%`,
                     top: `${text.y}%`,
@@ -136,10 +133,9 @@ const BusinessCard = React.forwardRef<HTMLDivElement, BusinessCardProps>(({
                     textAlign: text.textAlign,
                     WebkitTapHighlightColor: 'transparent'
                   }}
-                  onMouseDown={(e) => isDesignModeActive && onDragStart('text', text.id, e)}
-                  onTouchStart={(e) => isDesignModeActive && onDragStart('text', text.id, e)}
+                  onMouseDown={(e) => onDragStart('text', text.id, e)}
+                  onTouchStart={(e) => onDragStart('text', text.id, e)}
                   onClick={(e) => {
-                    if (!isDesignModeActive) return;
                     e.stopPropagation();
                     onSelect('text', text.id);
                   }}
@@ -148,42 +144,38 @@ const BusinessCard = React.forwardRef<HTMLDivElement, BusinessCardProps>(({
                 </div>
               ))}
 
-              {/* NFC Icon - Draggable (if visible) */}
-              {(data.showNfcIcon !== false) && (
-                <div
-                  className={`absolute ${isDesignModeActive ? 'cursor-move' : 'cursor-default'} touch-none z-30 ${selectedElementId === 'nfc-icon' && isDesignModeActive ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50' : ''}`}
-                  style={{
-                    left: `${data.nfcIconPosition?.x ?? 92}%`,
-                    top: `${data.nfcIconPosition?.y ?? 10}%`,
-                    transform: 'translate(-50%, -50%)',
-                    WebkitTapHighlightColor: 'transparent'
-                  }}
-                  onMouseDown={(e) => isDesignModeActive && onDragStart('image', 'nfc-icon', e)}
-                  onTouchStart={(e) => isDesignModeActive && onDragStart('image', 'nfc-icon', e)}
-                  onClick={(e) => {
-                    if (!isDesignModeActive) return;
-                    e.stopPropagation();
-                    onSelect('image', 'nfc-icon');
-                  }}
-                >
-                  <NfcIcon className="w-14 h-14 opacity-80 pointer-events-none" fill={nfcIconColor} />
-                </div>
-              )}
+              {/* NFC Icon - Draggable */}
+              <div
+                className={`absolute cursor-move touch-none z-30 ${selectedElementId === 'nfc-icon' ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50' : ''}`}
+                style={{
+                  left: `${data.nfcIconPosition?.x ?? 92}%`,
+                  top: `${data.nfcIconPosition?.y ?? 10}%`,
+                  transform: 'translate(-50%, -50%)',
+                  WebkitTapHighlightColor: 'transparent'
+                }}
+                onMouseDown={(e) => onDragStart('image', 'nfc-icon', e)}
+                onTouchStart={(e) => onDragStart('image', 'nfc-icon', e)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect('image', 'nfc-icon');
+                }}
+              >
+                <NfcIcon className="w-14 h-14 opacity-80 pointer-events-none" fill={nfcIconColor} />
+              </div>
 
-              {/* Branding - Draggable (Back side only, if visible) */}
-              {side === 'Back' && (data.showBranding !== false) && (
+              {/* Branding - Draggable (Back side only) */}
+              {side === 'Back' && (
                 <div
-                  className={`absolute ${isDesignModeActive ? 'cursor-move' : 'cursor-default'} touch-none z-30 ${selectedElementId === 'branding' && isDesignModeActive ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50' : ''}`}
+                  className={`absolute cursor-move touch-none z-30 ${selectedElementId === 'branding' ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50' : ''}`}
                   style={{
                     left: `${data.brandingPosition?.x ?? 15}%`,
                     top: `${data.brandingPosition?.y ?? 90}%`,
                     transform: 'translate(-50%, -50%)',
                     WebkitTapHighlightColor: 'transparent'
                   }}
-                  onMouseDown={(e) => isDesignModeActive && onDragStart('text', 'branding', e)}
-                  onTouchStart={(e) => isDesignModeActive && onDragStart('text', 'branding', e)}
+                  onMouseDown={(e) => onDragStart('text', 'branding', e)}
+                  onTouchStart={(e) => onDragStart('text', 'branding', e)}
                   onClick={(e) => {
-                    if (!isDesignModeActive) return;
                     e.stopPropagation();
                     onSelect('text', 'branding');
                   }}
