@@ -462,12 +462,20 @@ const CardDesignerPage: React.FC = () => {
         } catch (err) { showToast('Failed to download image.', 'error'); }
     }, [showToast, CARD_WIDTH, CARD_HEIGHT]);
 
+    const MAX_FILE_SIZE_MB = 4;
+    const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
     const captureAndUploadImage = async (side: 'front' | 'back', data: CardFaceData, folderPath: string): Promise<string> => {
         const client = getSupabase();
         if (data.fullDesignUrl) {
             try {
                 const blob = dataURLtoBlob(data.fullDesignUrl);
                 if (!blob) throw new Error("Failed to process uploaded design.");
+
+                // Check file size for uploaded designs
+                if (blob.size > MAX_FILE_SIZE_BYTES) {
+                    throw new Error(`Image too large (${(blob.size / 1024 / 1024).toFixed(1)}MB). Please reduce image size and try again. Maximum: ${MAX_FILE_SIZE_MB}MB`);
+                }
 
                 const filePath = `${folderPath}/${side}_card.png`;
                 const { error } = await client.storage.from(BUCKET_CARD_IMAGES).upload(filePath, blob, { upsert: true, cacheControl: '0' });
@@ -477,6 +485,7 @@ const CardDesignerPage: React.FC = () => {
                 return publicUrl;
             } catch (e: any) {
                 console.error(`Error processing direct upload for ${side}:`, e);
+                throw e; // Re-throw to show user the error
             }
         }
 
@@ -487,7 +496,7 @@ const CardDesignerPage: React.FC = () => {
         const dataUrl = await Promise.race([
             htmlToImage.toPng(element, {
                 fontEmbedCss: fontsEmbedCss,
-                pixelRatio: 6, // Increased to 6 for ~600 DPI quality
+                pixelRatio: 3, // Reduced from 6 to 3 for smaller file size (~300 DPI, still print quality)
                 cacheBust: false,
                 width: CARD_WIDTH,
                 height: CARD_HEIGHT,
@@ -498,6 +507,11 @@ const CardDesignerPage: React.FC = () => {
 
         const blob = dataURLtoBlob(dataUrl);
         if (!blob) throw new Error("Image generation failed (Blob conversion).");
+
+        // Check file size for generated images
+        if (blob.size > MAX_FILE_SIZE_BYTES) {
+            throw new Error(`Generated image too large (${(blob.size / 1024 / 1024).toFixed(1)}MB). Please reduce image size and try again. Maximum: ${MAX_FILE_SIZE_MB}MB`);
+        }
 
         const filePath = `${folderPath}/${side}_card.png`;
         const { error } = await client.storage.from(BUCKET_CARD_IMAGES).upload(filePath, blob, { upsert: true, cacheControl: '0' });
