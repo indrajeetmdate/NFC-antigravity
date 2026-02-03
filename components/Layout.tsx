@@ -6,6 +6,9 @@ import ProgressTracker from './ProgressTracker';
 import FeedbackForm from './FeedbackForm';
 import { usePreview } from '../context/PreviewContext';
 import { useProfile } from '../context/ProfileContext';
+import { useReAuth } from '../context/ReAuthContext';
+import ReconnectingOverlay from './ReconnectingOverlay';
+import InlineLoginModal from './InlineLoginModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,6 +24,7 @@ const workflowSteps: { [key: string]: { step: number; path: (id?: string) => str
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { profile, session, loading, signOut } = useProfile(); // Use centralized auth/profile state
   const { previewSlug, setPreviewSlug } = usePreview();
+  const { isReconnecting, needsLogin, dismissReAuth } = useReAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -62,6 +66,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950">
+      {/* Re-auth Overlay and Modal */}
+      <ReconnectingOverlay isVisible={isReconnecting} />
+      <InlineLoginModal
+        isVisible={needsLogin}
+        onDismiss={() => {
+          dismissReAuth();
+          navigate('/', { replace: true });
+        }}
+      />
+
       <header className="bg-black border-b border-zinc-800 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-20 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-4">

@@ -6,9 +6,11 @@ import { useProfile } from '../context/ProfileContext';
 
 interface AuthProps {
   type: 'login' | 'signup';
+  onSuccess?: () => void;
+  disableRedirect?: boolean;
 }
 
-const Auth: React.FC<AuthProps> = ({ type }) => {
+const Auth: React.FC<AuthProps> = ({ type, onSuccess, disableRedirect = false }) => {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -27,12 +29,15 @@ const Auth: React.FC<AuthProps> = ({ type }) => {
     }
   }, []);
 
-  // Use centralized profile context to redirect faster
+  // Use centralized profile context to redirect faster (unless disabled)
   useEffect(() => {
-    if (session) {
+    if (session && !disableRedirect) {
+      onSuccess?.();
       navigate('/dashboard');
+    } else if (session && disableRedirect) {
+      onSuccess?.();
     }
-  }, [session, navigate]);
+  }, [session, navigate, disableRedirect, onSuccess]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();

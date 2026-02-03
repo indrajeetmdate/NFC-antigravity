@@ -1,9 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { getSupabase, onSupabaseRecreated, registerAuthListener } from '../lib/supabase';
 import { useSupabaseLifecycle } from '../lib/supabaseLifecycle';
 import { Profile } from '../types';
+import { useReAuth } from './ReAuthContext';
 
 interface ProfileContextType {
   profile: Profile | null;
@@ -24,6 +24,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [error, setError] = useState<Error | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const mounted = useRef(true);
+  const reAuthContext = useReAuth();
 
   // Track unsubscribe function for auth listener
   const authUnsubscribeRef = useRef<(() => void) | null>(null);
@@ -161,11 +162,31 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         await fetchProfile(recoveredSession);
       }
     },
-    onSessionLost: () => {
+    onSessionLost: async () => {
       if (!mounted.current) return;
 
-      console.log('[ProfileContext] No session after client recreation');
+      console.log('[ProfileContext] Session lost after client recreation');
       setIsReconnecting(false);
+
+      // **NEW: Trigger re-auth flow instead of allowing redirect**
+      // Attempt silent re-auth using existing refresh token
+      const client = getSupabase();
+      const { data: { session: recoveredSession }, error: refreshError } = await client.auth.refreshSession();
+
+      if (recoveredSession) {
+        console.log('[ProfileContext] Silent re-auth succeeded');
+        setSession(recoveredSession);
+        if (recoveredSession.user?.id) {
+          await fetchProfile(recoveredSession);
+        }
+        reAuthContext.markReAuthSuccess();
+      } else {
+        console.log('[ProfileContext] Silent re-auth failed, triggering re-auth UI', refreshError);
+        // Clear session and trigger re-auth modal
+        setSession(null);
+        setProfile(null);
+        reAuthContext.triggerReAuth();
+      }
     },
     onVisibilityChange: (isVisible) => {
       if (isVisible && session) {
