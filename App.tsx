@@ -4,7 +4,6 @@ import Layout from './components/Layout';
 import Auth from './components/Auth';
 import Home from './components/Home';
 import { ProfileProvider } from './context/ProfileContext';
-import { ReAuthProvider } from './context/ReAuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import VersionCheck from './components/VersionCheck';
 
@@ -29,36 +28,35 @@ function App() {
     <HashRouter>
       <VersionCheck />
       <ErrorBoundary>
-        <ReAuthProvider>
-          <ProfileProvider>
-            <Layout>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Routes>
-                  {/* Public Routes - Keep Home fast but Auth is fast enough */}
-                  <Route path="/" element={<Home />} />
-                  <Route path="/p/:slug" element={<PublicProfile />} />
+        <ProfileProvider>
+          <Layout>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                {/* Public Routes - Keep Home fast but Auth is fast enough */}
+                <Route path="/" element={<Home />} />
+                <Route path="/p/:slug" element={<PublicProfile />} />
 
-                  {/* Auth Routes */}
-                  <Route path="/login" element={<Auth type="login" />} />
-                  <Route path="/signup" element={<Auth type="signup" />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/update-password" element={<UpdatePassword />} />
+                {/* Auth Routes */}
+                <Route path="/login" element={<Auth type="login" />} />
+                <Route path="/signup" element={<Auth type="signup" />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/update-password" element={<UpdatePassword />} />
 
-                  {/* App Routes - Protected & Heavy */}
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/profile/new" element={<ProfileEditor />} />
-                  <Route path="/profile/:id/edit" element={<ProfileEditor />} />
-                  <Route path="/dashboard/qrcode" element={<QrCodeGeneratorPage />} />
-                  <Route path="/dashboard/carddesign" element={<CardDesignerPage />} />
-                  <Route path="/payment" element={<PaymentPage />} />
-                </Routes>
-              </Suspense>
-            </Layout>
-          </ProfileProvider>
-        </ReAuthProvider>
+                {/* App Routes - Protected & Heavy */}
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/profile/new" element={<ProfileEditor />} />
+                <Route path="/profile/:id/edit" element={<ProfileEditor />} />
+                <Route path="/dashboard/qrcode" element={<QrCodeGeneratorPage />} />
+                <Route path="/dashboard/carddesign" element={<CardDesignerPage />} />
+                <Route path="/payment" element={<PaymentPage />} />
+              </Routes>
+            </Suspense>
+          </Layout>
+        </ProfileProvider>
       </ErrorBoundary>
     </HashRouter>
   );
 }
 
 export default App;
+

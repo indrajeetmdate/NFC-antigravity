@@ -7,8 +7,7 @@ import ControlPanel from './components/components_ControlPanel';
 import AiGeneratorModal from './components/components_AiGeneratorModal';
 import BottomEditBar from './components/BottomEditBar';
 import type { CardFaceData, ImageElement, TextElement } from '../types';
-import { getSupabase } from '../lib/supabase';
-import { useSupabaseLifecycle, getValidSession } from '../lib/supabaseLifecycle';
+import { supabase, getSupabase } from '../lib/supabase';
 import { BUCKET_CARD_IMAGES } from '../constants';
 import { useToast } from '../context/ToastContext';
 import PreviewModeToggle from '../components/PreviewModeToggle';
@@ -319,33 +318,7 @@ const CardDesignerPage: React.FC = () => {
         return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
     }, [profileId, frontData, backData, cardType]);
 
-    // Visibility-aware autosave: sync pending changes when tab becomes visible
-    useSupabaseLifecycle({
-        onVisibilityChange: async (isVisible) => {
-            if (isVisible && hasPendingChanges.current && profileId) {
-                console.log('[CardDesigner] Tab visible - checking for pending changes to sync');
-                // Validate session before attempting save
-                const session = await getValidSession();
-                if (session && mountedRef.current) {
-                    console.log('[CardDesigner] Session valid - syncing pending changes');
-                    const client = getSupabase();
-                    const { error } = await client.from('profiles').update({
-                        design_data: { front: frontData, back: backData, type: cardType },
-                        updated_at: new Date().toISOString()
-                    }).eq('id', profileId);
-
-                    if (error) {
-                        console.error('[CardDesigner] Sync failed:', error);
-                    } else {
-                        hasPendingChanges.current = false;
-                        console.log('[CardDesigner] Pending changes synced');
-                    }
-                } else {
-                    console.warn('[CardDesigner] No valid session - skipping sync');
-                }
-            }
-        }
-    });
+    // Removed: visibility-based autosave (per minimal architecture - visibility changes trigger nothing)
 
     const handleReset = useCallback(async () => {
         if (!window.confirm("Are you sure you want to reset the design to default? All changes will be lost.")) return;

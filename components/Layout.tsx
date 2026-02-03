@@ -1,14 +1,9 @@
-
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { registerAuthListener } from '../lib/supabase';
 import ProgressTracker from './ProgressTracker';
 import FeedbackForm from './FeedbackForm';
 import { usePreview } from '../context/PreviewContext';
 import { useProfile } from '../context/ProfileContext';
-import { useReAuth } from '../context/ReAuthContext';
-import ReconnectingOverlay from './ReconnectingOverlay';
-import InlineLoginModal from './InlineLoginModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -22,21 +17,10 @@ const workflowSteps: { [key: string]: { step: number; path: (id?: string) => str
 };
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { profile, session, loading, signOut } = useProfile(); // Use centralized auth/profile state
+  const { profile, session, loading, signOut } = useProfile();
   const { previewSlug, setPreviewSlug } = usePreview();
-  const { isReconnecting, needsLogin, dismissReAuth } = useReAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Listen for Password Recovery specifically if needed, otherwise AuthProvider handles state
-  useEffect(() => {
-    const unsubscribe = registerAuthListener(async (event, _session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        navigate('/update-password');
-      }
-    });
-    return () => unsubscribe();
-  }, [navigate]);
 
   const handleLogout = async () => {
     await signOut();
@@ -66,16 +50,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950">
-      {/* Re-auth Overlay and Modal */}
-      <ReconnectingOverlay isVisible={isReconnecting} />
-      <InlineLoginModal
-        isVisible={needsLogin}
-        onDismiss={() => {
-          dismissReAuth();
-          navigate('/', { replace: true });
-        }}
-      />
-
       <header className="bg-black border-b border-zinc-800 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-20 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-4">
@@ -93,7 +67,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </Link>
           </div>
           <nav className="flex items-center gap-2 sm:gap-4">
-            {/* Show nothing while loading auth state to prevent flicker */}
             {loading ? (
               <div className="h-5 w-20 bg-zinc-800 rounded animate-pulse"></div>
             ) : session ? (
@@ -101,7 +74,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Link to="/dashboard" className="text-sm font-medium text-zinc-300 hover:text-gold transition-colors">
                   Dashboard
                 </Link>
-
                 <button
                   onClick={handleLogout}
                   className="text-sm font-medium text-zinc-300 hover:text-red-500 transition-colors"
@@ -110,7 +82,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </button>
               </>
             ) : (
-              // Only show 'Create Card' (which acts as a CTA to signup) if definitely logged out
               <Link to="/signup" className="text-sm font-medium text-zinc-300 hover:text-gold transition-colors">
                 Create Card
               </Link>
@@ -163,7 +134,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <p>© {new Date().getFullYear()} CanopyCorp. All rights reserved.</p>
               <p className="mt-2">Mail us: info@canopycorp.in Call us: 8390940980</p>
             </div>
-
             <div className="w-full max-w-xs">
               <FeedbackForm variant="footer" />
             </div>
