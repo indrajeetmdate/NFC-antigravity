@@ -39,7 +39,7 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractiv
 
   const daysUntilExpiry = profile ? getDaysUntilExpiry(profile) : 365;
   const isExpired = daysUntilExpiry <= 0;
-  const isWarning = daysUntilExpiry <= 30 && !isExpired;
+  const isWarning = daysUntilExpiry <= 45 && !isExpired; // Increased to 45 days
 
   useEffect(() => {
     mounted.current = true;
@@ -212,10 +212,10 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractiv
     <div className="min-h-screen flex flex-col items-center overflow-x-hidden" style={containerStyle}>
       {/* --- NEW: Warning Banner (Subtle) --- */}
       {profile && isWarning && !profileData && (
-        <div className="w-full bg-zinc-900/80 text-zinc-400 px-3 py-1.5 text-center relative z-50 backdrop-blur-sm border-b border-zinc-800 flex items-center justify-center gap-2">
+        <div className="w-full bg-zinc-900 text-zinc-300 px-3 py-1.5 text-center relative z-50 border-b border-zinc-800 flex items-center justify-center gap-2">
           <p className="text-[10px] font-medium tracking-wide uppercase">
-            Privilege Expiring in <span className="text-zinc-200 font-bold">{daysUntilExpiry} Days</span>
-            <span className="mx-2 text-zinc-700">|</span>
+            Privilege Expiring in <span className="text-white font-bold">{daysUntilExpiry} Days</span>
+            <span className="mx-2 text-zinc-600">|</span>
             <a href="https://canopycorp.in/login" className="text-gold hover:underline">Renew</a>
           </p>
         </div>
