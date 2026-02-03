@@ -149,84 +149,43 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [fetchProfile, subscribeToAuthChanges]);
 
-  // Handle Tab Visibility Changes
+  // Handle Tab Visibility Changes - PASSIVE APPROACH (no client recreation)
   useSupabaseLifecycle({
-    onClientRecreated: async (newClient, recoveredSession) => {
+    // Called when session is verified after tab return (no recreation happened)
+    onSessionValidated: async (client, validatedSession) => {
       if (!mounted.current) return;
 
-      console.log('[ProfileContext] Client recreated with valid session, refreshing profile...');
+      console.log('[ProfileContext] Session validated on tab return (no recreation)');
       setIsReconnecting(false);
-      setSession(recoveredSession);
 
-      if (recoveredSession?.user?.id) {
-        await fetchProfile(recoveredSession);
+      // Only update if session is different
+      if (validatedSession?.user?.id !== session?.user?.id) {
+        setSession(validatedSession);
+        if (validatedSession?.user?.id) {
+          await fetchProfile(validatedSession);
+        }
       }
     },
+
+    // Called only on actual auth failure (network restore failed, 401/403)
     onSessionLost: async () => {
       if (!mounted.current) return;
 
-      console.log('[ProfileContext] Session check failed after client recreation');
+      console.log('[ProfileContext] Session lost (actual auth failure, not visibility)');
       setIsReconnecting(false);
 
-      // **OPTIMIZED: First try local getSession() for instant restoration**
-      const client = getSupabase();
-      const { data: { session: localSession }, error: localError } = await client.auth.getSession();
-
-      if (localSession) {
-        // SUCCESS: Session exists in local storage - restore immediately (no network call)
-        console.log('[ProfileContext] Restored session from local storage (instant)');
-        setSession(localSession);
-        if (localSession.user?.id) {
-          await fetchProfile(localSession);
-        }
-
-        // **Background re-auth: Refresh token in background to ensure validity**
-        // This is non-blocking - UI is already restored
-        console.log('[ProfileContext] Starting background token refresh...');
-        reAuthContext.triggerBackgroundReAuth();
-
-        // Execute refresh in background (don't await - let it run async)
-        client.auth.refreshSession().then(({ data, error }) => {
-          if (!mounted.current) return;
-
-          if (data.session) {
-            console.log('[ProfileContext] Background token refresh succeeded');
-            setSession(data.session);
-            reAuthContext.markReAuthSuccess();
-          } else {
-            console.warn('[ProfileContext] Background token refresh failed:', error);
-            reAuthContext.markBackgroundReAuthFailed();
-            // Don't clear session or show modal - let user continue with stale session
-            // Modal will appear on next authenticated request failure
-          }
-        }).catch((err) => {
-          console.error('[ProfileContext] Background refresh error:', err);
-          reAuthContext.markBackgroundReAuthFailed();
-        });
-
-      } else {
-        // FAILURE: No local session - request re-auth through centralized gatekeeper
-        console.log('[ProfileContext] No local session available, requesting re-auth', localError);
-        setSession(null);
-        setProfile(null);
-        reAuthContext.requestReauth('session_lost'); // Use gatekeeper - respects grace window
-
-        // Attempt refreshSession() as fallback (this will likely fail but worth trying)
-        const { data: { session: refreshedSession } } = await client.auth.refreshSession();
-
-        if (refreshedSession && mounted.current) {
-          console.log('[ProfileContext] Fallback refresh succeeded');
-          setSession(refreshedSession);
-          if (refreshedSession.user?.id) {
-            await fetchProfile(refreshedSession);
-          }
-          reAuthContext.markReAuthSuccess();
-        }
-      }
+      // Request re-auth through centralized gatekeeper
+      reAuthContext.requestReauth('auth_failed');
     },
+
     onVisibilityChange: (isVisible) => {
+      // Brief reconnecting indicator on tab return
       if (isVisible && session) {
         setIsReconnecting(true);
+        // Auto-dismiss after brief moment
+        setTimeout(() => {
+          if (mounted.current) setIsReconnecting(false);
+        }, 500);
       }
     }
   });

@@ -9,9 +9,9 @@ import {
 } from './supabase';
 
 interface SupabaseLifecycleOptions {
-    /** Called when client is recreated with valid session after returning from background */
-    onClientRecreated?: (client: SupabaseClient, session: Session) => void | Promise<void>;
-    /** Called when session is not available after recreation (user logged out) */
+    /** Called when session is validated after returning from background */
+    onSessionValidated?: (client: SupabaseClient, session: Session) => void | Promise<void>;
+    /** Called when session is lost (actual auth failure, not just visibility change) */
     onSessionLost?: () => void;
     /** Called on any visibility change - useful for triggering saves */
     onVisibilityChange?: (isVisible: boolean) => void | Promise<void>;
@@ -20,27 +20,31 @@ interface SupabaseLifecycleOptions {
 interface SupabaseLifecycleReturn {
     /** Whether a recovery is currently in progress */
     isRecovering: boolean;
+    /** Manually trigger client recreation (for 401/403 errors) */
+    triggerRecreation: () => Promise<void>;
 }
 
 /**
- * Global state to track visibility and enforce single recreation per resume.
+ * Global state for lifecycle management.
  */
 let wasHidden = false;
 let isRecreating = false;
-let hasRecreatedThisResume = false;
 
 /**
- * Hook to manage Supabase client recovery ONLY on actual browser lifecycle events.
+ * Hook to manage Supabase client lifecycle.
  * 
- * CRITICAL RULES:
- * 1. Client is NEVER recreated while document.visibilityState === "visible"
- * 2. Client is ONLY recreated on transition from hidden → visible
- * 3. Single-flight guard ensures only one recreation per resume event
- * 4. Recreation is blocked during visible state to protect in-flight requests
+ * NEW APPROACH (Failure-Driven Recovery):
+ * 1. Visibility change NEVER recreates the client
+ * 2. On tab return, only perform passive getSession() check
+ * 3. Client recreation ONLY triggered by:
+ *    - Network offline → online transition
+ *    - Explicit 401/403 auth errors (via triggerRecreation)
+ *    - Manual recreation request
+ * 4. Session remains valid unless proven otherwise
  */
 export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): SupabaseLifecycleReturn {
     const {
-        onClientRecreated,
+        onSessionValidated,
         onSessionLost,
         onVisibilityChange
     } = options;
@@ -48,101 +52,108 @@ export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): Su
     const isRecoveringRef = useRef(false);
     const mountedRef = useRef(true);
 
+    /**
+     * Manual recreation trigger - call this on 401/403 errors.
+     */
+    const triggerRecreation = async () => {
+        if (isRecreating) {
+            console.log('[SupabaseLifecycle] Recreation already in progress, skipping...');
+            return;
+        }
+
+        console.log('[SupabaseLifecycle] Manual recreation triggered (auth failure recovery)');
+
+        isRecreating = true;
+        isRecoveringRef.current = true;
+        setRecreationBlocked(false);
+
+        try {
+            const newClient = await recreateSupabase();
+            if (!mountedRef.current) return;
+
+            const { data: { session }, error } = await newClient.auth.getSession();
+            if (!mountedRef.current) return;
+
+            if (error || !session) {
+                console.log('[SupabaseLifecycle] Recreation complete but no valid session');
+                onSessionLost?.();
+            } else {
+                console.log('[SupabaseLifecycle] Recreation complete with valid session');
+                await onSessionValidated?.(newClient, session);
+            }
+        } catch (err) {
+            console.error('[SupabaseLifecycle] Recreation error:', err);
+            onSessionLost?.();
+        } finally {
+            isRecreating = false;
+            isRecoveringRef.current = false;
+            setRecreationBlocked(true);
+        }
+    };
+
     useEffect(() => {
         mountedRef.current = true;
 
-        // Block recreation while THIS component is mounted and visible
-        // This protects in-flight requests from being aborted
-        const updateRecreationBlock = () => {
-            const isVisible = document.visibilityState === 'visible';
-            setRecreationBlocked(isVisible);
-        };
-
-        // Initial state
-        updateRecreationBlock();
-
+        /**
+         * Handle visibility change - PASSIVE check only, NO recreation.
+         */
         const handleVisibilityChange = async () => {
             const isVisible = document.visibilityState === 'visible';
-
-            // Update recreation block state
-            setRecreationBlocked(isVisible);
 
             // Notify about visibility changes (for pending saves etc)
             onVisibilityChange?.(isVisible);
 
             if (!isVisible) {
-                // Tab going hidden - mark for potential recreation on return
+                // Tab going hidden - just mark it
                 wasHidden = true;
-                hasRecreatedThisResume = false;
-                console.log('[SupabaseLifecycle] Tab hidden - marking for recreation on return');
+                console.log('[SupabaseLifecycle] Tab hidden - session preserved (no recreation)');
                 return;
             }
 
-            // Tab becoming visible
-            // CRITICAL: Only recreate if we were actually hidden AND haven't already recreated
-            if (!wasHidden || hasRecreatedThisResume) {
-                console.log('[SupabaseLifecycle] Tab visible (no recreation needed)');
+            // Tab becoming visible - passive session check only
+            if (!wasHidden) {
+                console.log('[SupabaseLifecycle] Tab visible (was not hidden, skipping check)');
                 return;
             }
 
-            // CRITICAL: Single-flight guard
-            if (isRecreating) {
-                console.log('[SupabaseLifecycle] Recreation already in progress, skipping...');
-                return;
-            }
-
-            console.log('[SupabaseLifecycle] Tab returned from hidden state - initiating recreation');
-
-            // Mark that we're handling this resume event
-            isRecreating = true;
-            isRecoveringRef.current = true;
-            hasRecreatedThisResume = true;
             wasHidden = false;
-
-            // IMPORTANT: Unblock recreation temporarily for this operation
-            setRecreationBlocked(false);
+            console.log('[SupabaseLifecycle] Tab returned - performing PASSIVE session check (no recreation)');
 
             try {
-                const newClient = await recreateSupabase();
-
-                if (!mountedRef.current) return;
-
-                // Get session from fresh client
-                const { data: { session }, error } = await newClient.auth.getSession();
+                // PASSIVE CHECK: Just verify session exists, don't recreate client
+                const client = getSupabase();
+                const { data: { session }, error } = await client.auth.getSession();
 
                 if (!mountedRef.current) return;
 
                 if (error) {
                     console.warn('[SupabaseLifecycle] Session check error:', error.message);
-                    onSessionLost?.();
+                    // Don't trigger re-auth here - let the app handle on next protected action
                 } else if (session) {
-                    console.log('[SupabaseLifecycle] Client recreated with valid session');
-                    await onClientRecreated?.(newClient, session);
+                    console.log('[SupabaseLifecycle] Session verified (user:', session.user?.email, ')');
+                    await onSessionValidated?.(client, session);
                 } else {
-                    console.log('[SupabaseLifecycle] Client recreated but no session');
-                    onSessionLost?.();
+                    console.log('[SupabaseLifecycle] No session found - user may be logged out');
+                    // Don't trigger re-auth here - user might be on public page
+                    // Let protected actions trigger re-auth if needed
                 }
             } catch (err) {
-                console.error('[SupabaseLifecycle] Client recreation error:', err);
-            } finally {
-                isRecreating = false;
-                isRecoveringRef.current = false;
-                // Re-block recreation now that we're done
-                setRecreationBlocked(true);
+                console.error('[SupabaseLifecycle] Passive check error:', err);
             }
         };
 
-        // Handle online event - treat as potential need for recovery
+        /**
+         * Handle network online event - this IS a valid reason to recreate.
+         * Network loss can invalidate WebSocket connections.
+         */
         const handleOnline = async () => {
             if (document.visibilityState !== 'visible') return;
-            if (isRecreating || hasRecreatedThisResume) return;
+            if (isRecreating) return;
 
-            console.log('[SupabaseLifecycle] Network restored - initiating recovery');
+            console.log('[SupabaseLifecycle] Network restored - initiating client recreation');
 
             isRecreating = true;
             isRecoveringRef.current = true;
-            hasRecreatedThisResume = true;
-
             setRecreationBlocked(false);
 
             try {
@@ -152,15 +163,15 @@ export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): Su
                 const { data: { session }, error } = await newClient.auth.getSession();
                 if (!mountedRef.current) return;
 
-                if (error) {
+                if (error || !session) {
+                    console.log('[SupabaseLifecycle] Network recovery complete but no valid session');
                     onSessionLost?.();
-                } else if (session) {
-                    await onClientRecreated?.(newClient, session);
                 } else {
-                    onSessionLost?.();
+                    console.log('[SupabaseLifecycle] Network recovery complete with valid session');
+                    await onSessionValidated?.(newClient, session);
                 }
             } catch (err) {
-                console.error('[SupabaseLifecycle] Online recovery error:', err);
+                console.error('[SupabaseLifecycle] Network recovery error:', err);
             } finally {
                 isRecreating = false;
                 isRecoveringRef.current = false;
@@ -176,10 +187,11 @@ export function useSupabaseLifecycle(options: SupabaseLifecycleOptions = {}): Su
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('online', handleOnline);
         };
-    }, [onClientRecreated, onSessionLost, onVisibilityChange]);
+    }, [onSessionValidated, onSessionLost, onVisibilityChange]);
 
     return {
-        isRecovering: isRecoveringRef.current
+        isRecovering: isRecoveringRef.current,
+        triggerRecreation
     };
 }
 
