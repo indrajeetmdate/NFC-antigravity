@@ -609,6 +609,9 @@ const CardDesignerPage: React.FC = () => {
             // ===== PHASE 2: SEQUENTIAL IMAGE GENERATION (AWAITED) =====
             const imageUpdates: any = {};
 
+            // Track image generation errors
+            const genErrors: any[] = [];
+
             // Generate images sequentially with reduced quality for speed
             // Force await here to ensure images are ready before routing
             if (!sideToSave || sideToSave === 'front') {
@@ -618,19 +621,19 @@ const CardDesignerPage: React.FC = () => {
                     imageUpdates.front_side = frontUrl;
                 } catch (e) {
                     console.error("Front side save failed", e);
-                    // Non-blocking error for main flow? OR should we block? 
-                    // User said "Cards are saved", implying images too. Let's log but continue to try back.
+                    genErrors.push(e);
                 }
             }
 
             if (!sideToSave || sideToSave === 'back') {
                 if (!sideToSave) setSaveStatus("Generating Back Side...");
-                await new Promise(r => setTimeout(r, 300)); // Brief pause
+                await new Promise(r => setTimeout(r, 500)); // Brief pause to unblock UI
                 try {
                     const backUrl = await captureAndUploadImage('back', backData, currentFolder);
                     imageUpdates.back_side = backUrl;
                 } catch (e) {
                     console.error("Back side save failed", e);
+                    genErrors.push(e);
                 }
             }
 
@@ -638,12 +641,22 @@ const CardDesignerPage: React.FC = () => {
                 const client = getSupabase();
                 const { error: imgUpdateError } = await client.from('profiles').update(imageUpdates).eq('id', currentProfileId);
                 if (imgUpdateError) throw imgUpdateError;
+            } else if (genErrors.length > 0 && (!sideToSave || (sideToSave && genErrors.length === 1))) {
+                // If we tried to save images and ALL failed, throw error
+                // Condition: If sideToSave is specified, 1 error is total failure.
+                // If sideToSave is undefined (both), 2 errors is total failure. 
+                // But actually, if we have NO imageUpdates and we had errors, it's a failure.
+                throw new Error(`Image generation failed: ${(genErrors[0] as Error).message}`);
             }
 
             if (mountedRef.current) {
                 setIsSaving(false);
                 setSaveStatus('');
-                showToast("Design and images saved successfully!", 'success');
+                if (genErrors.length > 0) {
+                    showToast("Saved with warnings: One or more images failed to generate.", 'error');
+                } else {
+                    showToast("Design and images saved successfully!", 'success');
+                }
 
                 // Navigate immediately if saving "All" (Save & Continue)
                 if (!sideToSave && currentProfileId) {

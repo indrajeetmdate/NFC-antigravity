@@ -237,7 +237,7 @@ const ProfileEditor: React.FC = () => {
     };
 
     const addActionButton = () => {
-        const newBtn = createButton('link', 'New Button', '');
+        const newBtn = createButton('link', 'New Button', 'https://');
         setFormData(prev => ({
             ...prev,
             custom_elements: [...(prev.custom_elements || []), newBtn]
@@ -248,7 +248,7 @@ const ProfileEditor: React.FC = () => {
     const addSocialLink = (subtype: string) => {
         const preset = SOCIAL_PRESETS.find(p => p.key === subtype);
         if (!preset) return;
-        const newBtn = createButton(subtype, preset.label, '');
+        const newBtn = createButton(subtype, preset.label, subtype === 'whatsapp' ? 'https://wa.me/' : 'https://');
         setFormData(prev => ({
             ...prev,
             custom_elements: [...(prev.custom_elements || []), newBtn]
@@ -621,7 +621,26 @@ const ProfileEditor: React.FC = () => {
                                                 {editingId === btn.id && (
                                                     <div className="grid grid-cols-2 gap-3 mt-2 pt-2 border-t border-zinc-700/50">
                                                         <div className="col-span-2"><label className={labelClass}>Label</label><input type="text" value={btn.label} onChange={(e) => updateElement(btn.id, 'label', e.target.value)} className={inputClass} /></div>
-                                                        <div className="col-span-2"><label className={labelClass}>URL</label><input type="text" value={btn.url} onChange={(e) => updateElement(btn.id, 'url', e.target.value)} placeholder="https://..." className={inputClass} /></div>
+                                                        <div className="col-span-2">
+                                                            <label className={labelClass}>URL</label>
+                                                            <input
+                                                                type="text"
+                                                                value={btn.url}
+                                                                onChange={(e) => {
+                                                                    let val = e.target.value;
+                                                                    if (val.match(/^(https?:\/\/){2,}/)) val = val.replace(/^(https?:\/\/)+/, 'https://');
+                                                                    updateElement(btn.id, 'url', val);
+                                                                }}
+                                                                onBlur={(e) => {
+                                                                    let val = e.target.value;
+                                                                    if (val && !val.startsWith('http') && !val.startsWith('//')) {
+                                                                        updateElement(btn.id, 'url', `https://${val}`);
+                                                                    }
+                                                                }}
+                                                                placeholder="https://..."
+                                                                className={inputClass}
+                                                            />
+                                                        </div>
                                                         <div><label className={labelClass}>Bg Color</label><div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 p-1 rounded"><input type="color" value={btn.style.backgroundColor} onChange={(e) => updateElement(btn.id, 'style.backgroundColor', e.target.value)} className="w-6 h-6 p-0 border-0 bg-transparent cursor-pointer" /></div></div>
                                                         <div><label className={labelClass}>Text Color</label><div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 p-1 rounded"><input type="color" value={btn.style.textColor} onChange={(e) => updateElement(btn.id, 'style.textColor', e.target.value)} className="w-6 h-6 p-0 border-0 bg-transparent cursor-pointer" /></div></div>
                                                         <div><label className={labelClass}>Shape</label><select value={btn.style.shape} onChange={(e) => updateElement(btn.id, 'style.shape', e.target.value)} className={inputClass}><option value="rounded-none">Square</option><option value="rounded-lg">Rounded</option><option value="rounded-full">Pill</option></select></div>
@@ -685,7 +704,43 @@ const ProfileEditor: React.FC = () => {
                                                 </div>
                                                 {editingId === btn.id && (
                                                     <div className="mt-2 pt-2 border-t border-zinc-700/50 space-y-2">
-                                                        <div><label className={labelClass}>URL</label><input type="text" value={btn.url} onChange={(e) => updateElement(btn.id, 'url', e.target.value)} placeholder="https://..." className={inputClass} /></div>
+                                                        <div>
+                                                            <label className={labelClass}>{btn.subtype === 'whatsapp' ? 'WhatsApp Number' : 'URL'}</label>
+                                                            {btn.subtype === 'whatsapp' ? (
+                                                                <div className="flex items-center">
+                                                                    <span className="bg-zinc-700 text-zinc-400 px-2 py-1.5 text-sm rounded-l border border-r-0 border-zinc-700 h-full flex items-center">wa.me/</span>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={btn.url.replace(/^https:\/\/wa\.me\//, '')}
+                                                                        onChange={(e) => {
+                                                                            // Allow numbers, plus, and spaces (stripped)
+                                                                            const raw = e.target.value;
+                                                                            updateElement(btn.id, 'url', `https://wa.me/${raw}`);
+                                                                        }}
+                                                                        placeholder="919876543210"
+                                                                        className={`${inputClass} rounded-l-none`}
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <input
+                                                                    type="text"
+                                                                    value={btn.url}
+                                                                    onChange={(e) => {
+                                                                        let val = e.target.value;
+                                                                        if (val.match(/^(https?:\/\/){2,}/)) val = val.replace(/^(https?:\/\/)+/, 'https://');
+                                                                        updateElement(btn.id, 'url', val);
+                                                                    }}
+                                                                    onBlur={(e) => {
+                                                                        let val = e.target.value;
+                                                                        if (val && !val.startsWith('http') && !val.startsWith('//')) {
+                                                                            updateElement(btn.id, 'url', `https://${val}`);
+                                                                        }
+                                                                    }}
+                                                                    placeholder="https://..."
+                                                                    className={inputClass}
+                                                                />
+                                                            )}
+                                                        </div>
 
                                                         <div className="grid grid-cols-2 gap-3">
                                                             <div><label className={labelClass}>Background Color</label><div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 p-1 rounded"><input type="color" value={btn.style.backgroundColor} onChange={(e) => updateElement(btn.id, 'style.backgroundColor', e.target.value)} className="w-6 h-6 p-0 border-0 bg-transparent cursor-pointer" /></div></div>
