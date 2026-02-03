@@ -41,7 +41,7 @@ const PaymentPage: React.FC = () => {
 
     // Check various coupon states
     const isLoyaltyApplied = couponCode.trim().toUpperCase() === 'LOYALTYCARD' && upiId === '111111111111';
-    const isNoFeesApplied = couponCode.trim().toUpperCase() === 'NOFEES' && upiId === '222222222222';
+    const isNoFeesApplied = (couponCode.trim().toUpperCase() === 'NOFEES' || couponCode.trim().toUpperCase() === 'BBNGWARJE') && upiId === '222222222222';
     const isCouponApplied = isLoyaltyApplied || isNoFeesApplied;
 
     const handleUpiIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,7 +75,7 @@ const PaymentPage: React.FC = () => {
                 console.error("Error applying loyalty coupon:", err);
                 showToast("Failed to apply coupon changes. Please try again.", 'error');
             }
-        } else if (code === 'NOFEES') {
+        } else if (code === 'NOFEES' || code === 'BBNGWARJE') {
             setUpiId('222222222222');
             showToast("Coupon applied! Payment waived.", 'success');
         } else {
@@ -212,9 +212,12 @@ const PaymentPage: React.FC = () => {
                                 <span className="text-xs font-bold text-gold uppercase tracking-wider">Promotional Offer</span>
                             </div>
                             <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-1">Total Payable</p>
-                            <div className="flex items-baseline justify-center gap-3">
-                                <span className="text-4xl font-bold text-white">₹549</span>
-                                <span className="text-lg text-zinc-600 line-through decoration-2">₹749</span>
+                            <div className="flex flex-col items-center">
+                                <div className="flex items-baseline justify-center gap-3">
+                                    <span className="text-4xl font-bold text-white">₹549 <span className="text-sm font-normal text-zinc-400">/ year</span></span>
+                                    <span className="text-lg text-zinc-600 line-through decoration-2">₹749</span>
+                                </div>
+                                <p className="text-[10px] text-zinc-500 mt-1 font-medium">(Renews at ₹299 / year)</p>
                             </div>
                         </div>
 

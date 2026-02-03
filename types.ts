@@ -75,6 +75,7 @@ export interface Profile {
   ai_generation_count?: { front: number; back: number }; // New: Track AI usage
   created_at: string;
   updated_at: string;
+  subscription_end_date?: string | null; // New: Track subscription expiry (timestamptz)
 }
 
 export type ProfileInsert = Omit<Profile, 'id' | 'created_at' | 'updated_at'>;

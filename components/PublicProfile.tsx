@@ -17,6 +17,30 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractiv
   const [loading, setLoading] = useState(!profileData);
   const mounted = useRef(true);
 
+  // Helper to calculate expiry days
+  const getDaysUntilExpiry = (p: Partial<Profile>) => {
+    if (p.subscription_end_date) {
+      const end = new Date(p.subscription_end_date);
+      const now = new Date();
+      const diffTime = end.getTime() - now.getTime();
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+    // Fallback: Created At + 365 days
+    if (p.created_at) {
+      const created = new Date(p.created_at);
+      const end = new Date(created);
+      end.setDate(end.getDate() + 365);
+      const now = new Date();
+      const diffTime = end.getTime() - now.getTime();
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+    return 365; // Safe default
+  };
+
+  const daysUntilExpiry = profile ? getDaysUntilExpiry(profile) : 365;
+  const isExpired = daysUntilExpiry <= 0;
+  const isWarning = daysUntilExpiry <= 30 && !isExpired;
+
   useEffect(() => {
     mounted.current = true;
 
@@ -119,6 +143,30 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractiv
     );
   }
 
+  // --- NEW: Expired State (Blocking Overlay) ---
+  // Only show if not in preview mode (isPreview = !!profileData)
+  if (profile && isExpired && !profileData && mounted.current) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="w-20 h-20 rounded-full bg-red-900/20 flex items-center justify-center mb-6 border border-red-900/50">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-3">Profile Expired</h1>
+        <p className="text-zinc-400 max-w-md mb-8 leading-relaxed">
+          This digital profile is currently inactive. If you are the owner, please renew your subscription to reactivate it.
+        </p>
+        <a
+          href="https://canopycorp.in/login"
+          className="px-8 py-3.5 bg-gradient-to-r from-zinc-800 to-zinc-700 hover:from-zinc-700 hover:to-zinc-600 text-white rounded-xl font-bold transition-all shadow-lg border border-zinc-600/50"
+        >
+          Renew Subscription
+        </a>
+      </div>
+    );
+  }
+
   if (!profile) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 px-4 text-center">
@@ -162,6 +210,18 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractiv
 
   return (
     <div className="min-h-screen flex flex-col items-center overflow-x-hidden" style={containerStyle}>
+      {/* --- NEW: Warning Banner (Top) --- */}
+      {profile && isWarning && !profileData && (
+        <div className="w-full bg-yellow-900/90 text-yellow-200 px-4 py-2.5 text-center relative z-50 backdrop-blur-sm border-b border-yellow-700/50 flex items-center justify-center gap-2 shadow-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          <p className="text-xs sm:text-sm font-medium">
+            Subscription expires in <span className="font-bold text-white">{daysUntilExpiry} days</span>.
+            <a href="https://canopycorp.in/login" className="ml-2 underline hover:text-white transition-colors">Renew now</a>
+          </p>
+        </div>
+      )}
       <div
         className="w-full h-48 md:h-64 bg-zinc-800 relative overflow-hidden shrink-0"
         style={{ backgroundColor: profile.theme_color || '#d7ba52' }}
