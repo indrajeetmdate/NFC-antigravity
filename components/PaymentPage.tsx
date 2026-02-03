@@ -152,6 +152,20 @@ const PaymentPage: React.FC = () => {
 
             if (error) throw error;
 
+            // OPTIMISTIC UPDATE FOR RENEWAL:
+            // Explicitly set subscription_end_date to 1 year from now.
+            // This ensures instant access restoration even if backend RPC is slow or missing the update.
+            const oneYearFromNow = new Date();
+            oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+            await getSupabase()
+                .from('profiles')
+                .update({
+                    subscription_end_date: oneYearFromNow.toISOString()
+                })
+                .eq('id', profile.id);
+
+
             setUpiId('');
 
             // Refresh profile immediately to update dashboard status
