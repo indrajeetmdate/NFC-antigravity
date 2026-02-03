@@ -116,4 +116,6 @@ export interface CardFaceData {
   urlColor?: string;
   nfcIconPosition?: { x: number; y: number }; // percentage position, default top-right
   brandingPosition?: { x: number; y: number }; // percentage position, default bottom-left
+  showNfcIcon?: boolean; // default: true - set to false to hide NFC icon
+  showBranding?: boolean; // default: true - set to false to hide branding (back side only)
 }

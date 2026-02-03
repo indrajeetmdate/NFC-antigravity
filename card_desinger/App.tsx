@@ -25,6 +25,7 @@ const initialFrontData: CardFaceData = {
     backgroundImageUrl: null,
     nfcIconColor: '#d7ba52',
     urlColor: '#d7ba52',
+    showNfcIcon: true,
 };
 
 const initialBackData: CardFaceData = {
@@ -36,6 +37,8 @@ const initialBackData: CardFaceData = {
     backgroundImageUrl: null,
     nfcIconColor: '#d7ba52',
     urlColor: '#d7ba52',
+    showNfcIcon: true,
+    showBranding: true,
 };
 
 const dataURLtoBlob = (dataurl: string): Blob | null => {

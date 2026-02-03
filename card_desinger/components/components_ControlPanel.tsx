@@ -195,12 +195,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     const handleDelete = () => {
         if (!selectedElement) return;
 
-        // Prevent deletion of mandatory QR code
-        if (selectedElement.id === 'qr') {
-            // Optional: You could show a toast here if you had access to showToast
+        // Handle NFC Icon deletion - set visibility flag
+        if (selectedElement.id === 'nfc-icon') {
+            setCardData(prev => ({ ...prev, showNfcIcon: false }));
+            onDeselect();
             return;
         }
 
+        // Handle Branding deletion - set visibility flag
+        if (selectedElement.id === 'branding') {
+            setCardData(prev => ({ ...prev, showBranding: false }));
+            onDeselect();
+            return;
+        }
+
+        // Handle QR code deletion - remove from images array
+        if (selectedElement.id === 'qr') {
+            setCardData(prev => ({ ...prev, images: prev.images.filter(i => i.id !== 'qr') }));
+            onDeselect();
+            return;
+        }
+
+        // Handle regular text and image deletion
         if (selectedElement.type === 'text') setCardData(prev => ({ ...prev, texts: prev.texts.filter(t => t.id !== selectedElement.id) }));
         else setCardData(prev => ({ ...prev, images: prev.images.filter(i => i.id !== selectedElement.id) }));
         onDeselect();
