@@ -205,11 +205,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
 
       } else {
-        // FAILURE: No local session - must trigger full re-auth flow
-        console.log('[ProfileContext] No local session available, triggering re-auth UI', localError);
+        // FAILURE: No local session - request re-auth through centralized gatekeeper
+        console.log('[ProfileContext] No local session available, requesting re-auth', localError);
         setSession(null);
         setProfile(null);
-        reAuthContext.triggerReAuth();
+        reAuthContext.requestReauth('session_lost'); // Use gatekeeper - respects grace window
 
         // Attempt refreshSession() as fallback (this will likely fail but worth trying)
         const { data: { session: refreshedSession } } = await client.auth.refreshSession();

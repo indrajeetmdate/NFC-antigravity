@@ -7,7 +7,7 @@ interface ReAuthContextType {
     preservedRoute: string | null;
     hiddenDuration: number | null;
     isWithinGraceWindow: () => boolean;
-    triggerReAuth: () => void;
+    requestReauth: (reason: 'session_lost' | 'auth_failed') => void;
     triggerBackgroundReAuth: () => void;
     markBackgroundReAuthFailed: () => void;
     dismissReAuth: () => void;
@@ -82,18 +82,18 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [hiddenDuration]);
 
     /**
-     * Triggered for immediate re-auth (when getSession() returns null).
-     * Respects grace window - only shows modal if grace period elapsed.
+     * CENTRALIZED RE-AUTH GATEKEEPER (ONLY ENTRY POINT)
+     * All re-auth requests MUST go through this function.
+     * Enforces grace window in ALL code paths.
      */
-    const triggerReAuth = useCallback(() => {
+    const requestReauth = useCallback((reason: 'session_lost' | 'auth_failed') => {
+        console.log(`[ReAuth] requestReauth called, reason: ${reason}`);
+
         // Prevent multiple attempts in the same session
         if (attemptedThisSession.current) {
             console.log('[ReAuth] Already attempted re-auth this session, skipping...');
             return;
         }
-
-        console.log('[ReAuth] Triggering immediate re-auth flow...');
-        attemptedThisSession.current = true;
 
         // Preserve current route (exclude login/signup pages)
         const currentPath = location.pathname;
@@ -101,29 +101,37 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setPreservedRoute(currentPath);
         }
 
-        // **Grace Window Check**
+        // **CRITICAL: Grace Window Check (applies to ALL reasons)**
         const withinGrace = isWithinGraceWindow();
 
         if (withinGrace) {
-            console.log('[ReAuth] Within grace window - suppressing login modal');
-            // Show brief reconnecting overlay, but don't escalate to modal
-            setIsReconnecting(true);
-            setTimeout(() => {
-                setIsReconnecting(false);
-            }, 500); // Very brief overlay
-            return;
+            console.log(`[ReAuth] Within grace window - suppressing re-auth for reason: ${reason}`);
+
+            if (reason === 'session_lost') {
+                // Session lost during client recreation - this is expected, don't escalate
+                console.log('[ReAuth] Session unverified after recreation, treating as temporary');
+                // Don't even show overlay - completely silent
+                return;
+            } else if (reason === 'auth_failed') {
+                // Actual auth failure (API 401) - show brief overlay
+                console.log('[ReAuth] Auth action failed, but within grace - brief overlay only');
+                setIsReconnecting(true);
+                setTimeout(() => setIsReconnecting(false), 500);
+                return;
+            }
         }
 
-        // Outside grace window - show reconnecting overlay and prepare modal
+        // Outside grace window OR no grace tracking - proceed with full re-auth
+        console.log(`[ReAuth] Outside grace window or first load, proceeding with re-auth for: ${reason}`);
+        attemptedThisSession.current = true;
         setIsReconnecting(true);
 
-        // The silent re-auth attempt will be handled by ProfileContext
-        // After a short timeout, show login modal (background re-auth should complete before this)
+        // Show login modal after timeout
         backgroundReAuthTimeoutRef.current = setTimeout(() => {
-            console.log('[ReAuth] Background re-auth timed out, showing login modal...');
+            console.log('[ReAuth] Showing login modal after grace window expiry');
             setIsReconnecting(false);
             setNeedsLogin(true);
-        }, 2000); // 2 second timeout for background re-auth
+        }, 2000);
     }, [location.pathname, isWithinGraceWindow]);
 
     /**
@@ -198,7 +206,7 @@ export const ReAuthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 preservedRoute,
                 hiddenDuration,
                 isWithinGraceWindow,
-                triggerReAuth,
+                requestReauth,
                 triggerBackgroundReAuth,
                 markBackgroundReAuthFailed,
                 dismissReAuth,
