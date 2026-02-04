@@ -662,8 +662,8 @@ const CardDesignerPage: React.FC = () => {
         : `${previewMode === 'mobile' ? 'w-[95%] max-w-[400px]' : 'w-[90%] md:w-[45%]'} aspect-[1.75/1] shadow-2xl transition-all duration-300`;
 
     return (
-        <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-80px)] bg-zinc-950 text-white flex flex-col overflow-hidden">
-            <div className="flex-shrink-0 z-50 bg-black border-b border-zinc-800">
+        <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-80px)] bg-zinc-950 text-white flex flex-col overflow-hidden relative">
+            <div className="absolute top-0 left-0 right-0 z-50 bg-black border-b border-zinc-800 transition-all duration-200">
                 <ControlPanel
                     activeCardData={activeData}
                     setCardData={setActiveData}
@@ -729,7 +729,7 @@ const CardDesignerPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="w-full min-h-full flex flex-col items-center relative pt-32 pb-12">
+                <div className="w-full min-h-full flex flex-col items-center relative pt-48 pb-12">
                     <div className={`w-full flex-1 flex flex-col items-center transition-opacity duration-300 ${activeSide === 'front' ? 'relative z-10 opacity-100' : 'absolute inset-0 z-0 opacity-0 pointer-events-none'}`}>
                         <div className={`${containerClasses} flex items-center justify-center my-auto`}>
                             <BusinessCard
