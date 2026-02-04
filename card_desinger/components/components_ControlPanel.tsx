@@ -238,7 +238,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
     );
 
-    const editorHeightClass = "min-h-[160px]";
+    const editorHeightClass = "min-h-[140px] bg-zinc-900/60 backdrop-blur-md border-t border-zinc-800/50";
 
     const renderContent = () => {
         if (selectedElement) {
@@ -250,12 +250,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             const item: any = textItem || imageItem;
 
             return (
-                <div className={`w-full bg-zinc-900 p-2 animate-slide-up ${editorHeightClass}`}>
+                <div className={`w-full p-2 animate-slide-up ${editorHeightClass}`}>
                     <div className="flex items-center justify-between mb-4 border-b border-zinc-800 pb-2">
                         <span className="text-xs font-bold text-gold uppercase tracking-wider">Editing {selectedElement.type}</span>
                         <button onClick={onDeselect} className="text-xs text-zinc-400 bg-zinc-800 px-3 py-1 rounded hover:text-white">Done</button>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-3">
                             {selectedElement.type === 'text' && (
                                 <div className="space-y-1">
@@ -312,7 +312,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
         if (mode === 'COLOR') {
             return (
-                <div className={`w-full bg-zinc-900 p-2 animate-slide-up ${editorHeightClass}`}>
+                <div className={`w-full p-2 animate-slide-up ${editorHeightClass}`}>
                     <div className="flex items-center justify-between mb-4 border-b border-zinc-800 pb-2">
                         <span className="text-xs font-bold text-gold uppercase tracking-wider">Background Color</span>
                         <button onClick={() => setMode('TOOLS')} className="text-xs text-zinc-400 bg-zinc-800 px-3 py-1 rounded hover:text-white">Done</button>
@@ -333,16 +333,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             );
         }
 
-        if (mode === 'QR') return <div className={`w-full bg-zinc-900 p-2 ${editorHeightClass}`}><CompactQrGenerator onUpdate={handleQrUpdate} onCancel={() => setMode('TOOLS')} /></div>;
+        if (mode === 'QR') return <div className={`w-full p-2 ${editorHeightClass}`}><CompactQrGenerator onUpdate={handleQrUpdate} onCancel={() => setMode('TOOLS')} /></div>;
 
         if (mode === 'SETTINGS') {
             return (
-                <div className={`w-full bg-zinc-900 p-2 animate-slide-up ${editorHeightClass}`}>
+                <div className={`w-full p-2 animate-slide-up ${editorHeightClass}`}>
                     <div className="flex items-center justify-between mb-4 border-b border-zinc-800 pb-2">
                         <span className="text-xs font-bold text-gold uppercase tracking-wider">Card Settings</span>
                         <button onClick={() => setMode('TOOLS')} className="text-xs text-zinc-400 bg-zinc-800 px-3 py-1 rounded hover:text-white">Done</button>
                     </div>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-4">
                             <div className="space-y-4">
                                 <div className="p-3 bg-zinc-800/50 rounded border border-zinc-700/50">
@@ -502,108 +502,110 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     };
 
     return (
-        <div className="w-full bg-zinc-900 border-b border-zinc-800 p-2">
-            {/* Top Bar: Card Type, View Toggle, Save */}
-            <div className="flex justify-between items-center px-2 mb-2 pt-1 border-b border-zinc-800 pb-2 overflow-x-auto scrollbar-hide gap-2">
-                {/* Left side: Card/Standie Toggle */}
-                <div className="flex bg-zinc-800 rounded-lg p-0.5 shadow-inner flex-shrink-0">
-                    <button onClick={() => setCardType('business_card')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'business_card' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Card</button>
-                    <button onClick={() => setCardType('standie')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'standie' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Standie</button>
-                </div>
-
-                {/* Right side: View Toggles + Save */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* View Toggles */}
-                    <div className="flex bg-zinc-800 rounded-lg p-0.5">
-                        <button onClick={() => setActiveSide('front')} className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${activeSide === 'front' ? 'bg-zinc-600 text-white' : 'text-zinc-500'}`}>Front</button>
-                        <button onClick={() => setActiveSide('back')} className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${activeSide === 'back' ? 'bg-zinc-600 text-white' : 'text-zinc-500'}`}>Back</button>
+        <div className="w-full bg-transparent flex flex-col pointer-events-auto">
+            <div className="bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/50 p-2 shadow-md">
+                {/* Top Bar: Card Type, View Toggle, Save */}
+                <div className="flex justify-between items-center px-2 mb-2 pt-1 border-b border-zinc-800 pb-2 overflow-x-auto scrollbar-hide gap-2">
+                    {/* Left side: Card/Standie Toggle */}
+                    <div className="flex bg-zinc-800 rounded-lg p-0.5 shadow-inner flex-shrink-0">
+                        <button onClick={() => setCardType('business_card')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'business_card' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Card</button>
+                        <button onClick={() => setCardType('standie')} className={`px-2 sm:px-3 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${cardType === 'standie' ? 'bg-zinc-600 text-white shadow' : 'text-zinc-500'}`}>Standie</button>
                     </div>
 
-                    {/* Save Buttons */}
-                    <div className="flex gap-1 items-center">
-                        {isSaving ? (
-                            <div className="px-3 py-1.5 bg-zinc-800 rounded text-[10px] font-mono text-gold animate-pulse border border-zinc-700">
-                                {saveStatus || 'Saving...'}
-                            </div>
+                    {/* Right side: View Toggles + Save */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* View Toggles */}
+                        <div className="flex bg-zinc-800 rounded-lg p-0.5">
+                            <button onClick={() => setActiveSide('front')} className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${activeSide === 'front' ? 'bg-zinc-600 text-white' : 'text-zinc-500'}`}>Front</button>
+                            <button onClick={() => setActiveSide('back')} className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${activeSide === 'back' ? 'bg-zinc-600 text-white' : 'text-zinc-500'}`}>Back</button>
+                        </div>
+
+                        {/* Save Buttons */}
+                        <div className="flex gap-1 items-center">
+                            {isSaving ? (
+                                <div className="px-3 py-1.5 bg-zinc-800 rounded text-[10px] font-mono text-gold animate-pulse border border-zinc-700">
+                                    {saveStatus || 'Saving...'}
+                                </div>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={() => onSave()}
+                                        className="bg-green-600 text-white border border-green-500 px-4 py-1.5 rounded-md text-[10px] font-bold hover:bg-green-500 hover:border-green-400 transition-all shadow-sm flex items-center gap-1"
+                                        title="Save Design & Continue"
+                                    >
+                                        <span>Save & Continue</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Large Upload & Theme Color Section - For Easy Access */}
+                {/* Compact Toolbar */}
+                <div className="flex items-center gap-2 px-2 py-2 border-b border-zinc-800 overflow-x-auto scrollbar-hide">
+                    {/* Upload Button - Compact */}
+                    <button
+                        onClick={onTriggerUpload}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-gold/90 to-gold text-black font-bold hover:from-gold hover:to-gold/80 transition-all text-[10px] whitespace-nowrap"
+                        title="Upload Card Design"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        <span>Upload Design</span>
+                    </button>
+
+                    <div className="w-px h-6 bg-zinc-800 mx-1"></div>
+
+                    {/* NFC Color */}
+                    <div className="flex items-center gap-2 bg-zinc-800/50 px-2 py-1 rounded-lg border border-zinc-700/50">
+                        <input
+                            type="color"
+                            value={activeCardData.nfcIconColor || '#d7ba52'}
+                            onChange={(e) => handleNfcColorChange(e.target.value)}
+                            className="w-6 h-6 rounded border border-zinc-600 cursor-pointer bg-transparent p-0"
+                            title="NFC Color"
+                        />
+                        <span className="text-[10px] text-zinc-400">NFC</span>
+                    </div>
+
+                    {/* QR Color */}
+                    <div className="flex items-center gap-2 bg-zinc-800/50 px-2 py-1 rounded-lg border border-zinc-700/50">
+                        <input
+                            type="color"
+                            defaultValue={activeCardData.nfcIconColor || '#d7ba52'}
+                            onChange={(e) => handleQrColorChange(e.target.value)}
+                            className="w-6 h-6 rounded border border-zinc-600 cursor-pointer bg-transparent p-0"
+                            title="QR Color"
+                        />
+                        <span className="text-[10px] text-zinc-400">QR</span>
+                    </div>
+
+                    {/* Visibility Toggle */}
+                    <button
+                        onClick={toggleNfcVisibility}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold transition-all whitespace-nowrap ${activeCardData.showNfcIcon === false ? 'bg-red-900/20 border-red-800 text-red-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}
+                        title="Toggle NFC Icon & Branding Visibility"
+                    >
+                        {activeCardData.showNfcIcon === false ? (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                <span>Hidden</span>
+                            </>
                         ) : (
                             <>
-                                <button
-                                    onClick={() => onSave()}
-                                    className="bg-green-600 text-white border border-green-500 px-4 py-1.5 rounded-md text-[10px] font-bold hover:bg-green-500 hover:border-green-400 transition-all shadow-sm flex items-center gap-1"
-                                    title="Save Design & Continue"
-                                >
-                                    <span>Save & Continue</span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                <span>Visible</span>
                             </>
                         )}
-                    </div>
+                    </button>
                 </div>
+
             </div>
-
-            {/* Large Upload & Theme Color Section - For Easy Access */}
-            {/* Compact Toolbar */}
-            <div className="flex items-center gap-2 px-2 py-2 border-b border-zinc-800 overflow-x-auto scrollbar-hide">
-                {/* Upload Button - Compact */}
-                <button
-                    onClick={onTriggerUpload}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-gold/90 to-gold text-black font-bold hover:from-gold hover:to-gold/80 transition-all text-[10px] whitespace-nowrap"
-                    title="Upload Card Design"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    <span>Upload Design</span>
-                </button>
-
-                <div className="w-px h-6 bg-zinc-800 mx-1"></div>
-
-                {/* NFC Color */}
-                <div className="flex items-center gap-2 bg-zinc-800/50 px-2 py-1 rounded-lg border border-zinc-700/50">
-                    <input
-                        type="color"
-                        value={activeCardData.nfcIconColor || '#d7ba52'}
-                        onChange={(e) => handleNfcColorChange(e.target.value)}
-                        className="w-6 h-6 rounded border border-zinc-600 cursor-pointer bg-transparent p-0"
-                        title="NFC Color"
-                    />
-                    <span className="text-[10px] text-zinc-400">NFC</span>
-                </div>
-
-                {/* QR Color */}
-                <div className="flex items-center gap-2 bg-zinc-800/50 px-2 py-1 rounded-lg border border-zinc-700/50">
-                    <input
-                        type="color"
-                        defaultValue={activeCardData.nfcIconColor || '#d7ba52'}
-                        onChange={(e) => handleQrColorChange(e.target.value)}
-                        className="w-6 h-6 rounded border border-zinc-600 cursor-pointer bg-transparent p-0"
-                        title="QR Color"
-                    />
-                    <span className="text-[10px] text-zinc-400">QR</span>
-                </div>
-
-                {/* Visibility Toggle */}
-                <button
-                    onClick={toggleNfcVisibility}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold transition-all whitespace-nowrap ${activeCardData.showNfcIcon === false ? 'bg-red-900/20 border-red-800 text-red-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}
-                    title="Toggle NFC Icon & Branding Visibility"
-                >
-                    {activeCardData.showNfcIcon === false ? (
-                        <>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                            <span>Hidden</span>
-                        </>
-                    ) : (
-                        <>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                            <span>Visible</span>
-                        </>
-                    )}
-                </button>
-            </div>
-
             {/* Only show tool content when design mode is active */}
             {isDesignModeActive && renderContent()}
         </div>

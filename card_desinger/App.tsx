@@ -663,7 +663,7 @@ const CardDesignerPage: React.FC = () => {
 
     return (
         <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-80px)] bg-zinc-950 text-white flex flex-col overflow-hidden relative">
-            <div className="absolute top-0 left-0 right-0 z-50 bg-black border-b border-zinc-800 transition-all duration-200">
+            <div className="absolute top-0 left-0 right-0 z-50 bg-transparent transition-all duration-200">
                 <ControlPanel
                     activeCardData={activeData}
                     setCardData={setActiveData}

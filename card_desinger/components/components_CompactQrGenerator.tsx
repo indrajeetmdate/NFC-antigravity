@@ -104,24 +104,24 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
                 <button onClick={onCancel} className="text-xs text-zinc-400 bg-zinc-800 px-2 py-1 rounded">Cancel</button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
                 <div>
                     <label className="text-xs text-zinc-400 block mb-1">Dots Color</label>
-                    <input type="color" value={options.dotsOptions.color} onChange={e => setOptions({ ...options, dotsOptions: { ...options.dotsOptions, color: e.target.value }, cornersSquareOptions: { ...options.cornersSquareOptions, color: e.target.value }, cornersDotOptions: { ...options.cornersDotOptions, color: e.target.value } })} className="w-full h-8 bg-zinc-800 rounded cursor-pointer" />
+                    <input type="color" value={options.dotsOptions.color} onChange={e => setOptions({ ...options, dotsOptions: { ...options.dotsOptions, color: e.target.value }, cornersSquareOptions: { ...options.cornersSquareOptions, color: e.target.value }, cornersDotOptions: { ...options.cornersDotOptions, color: e.target.value } })} className="w-full h-6 bg-zinc-800 rounded cursor-pointer" />
                 </div>
                 <div>
                     <label className="text-xs text-zinc-400 block mb-1">Background</label>
-                    <input type="color" value={options.backgroundOptions.color} onChange={e => setOptions({ ...options, backgroundOptions: { ...options.backgroundOptions, color: e.target.value } })} className="w-full h-8 bg-zinc-800 rounded cursor-pointer" />
+                    <input type="color" value={options.backgroundOptions.color} onChange={e => setOptions({ ...options, backgroundOptions: { ...options.backgroundOptions, color: e.target.value } })} className="w-full h-6 bg-zinc-800 rounded cursor-pointer" />
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1">
                 <SelectField label="Dots Style" value={options.dotsOptions.type} onChange={e => setOptions(prev => ({ ...prev, dotsOptions: { ...prev.dotsOptions, type: e.target.value as DotType } }))} options={DOT_TYPES} />
                 <SelectField label="Corners" value={options.cornersSquareOptions.type ?? ''} onChange={e => setOptions(prev => ({ ...prev, cornersSquareOptions: { ...prev.cornersSquareOptions, type: e.target.value as CornerSquareType } }))} options={CORNER_SQUARE_TYPES} />
                 <SelectField label="Corner Dots" value={options.cornersDotOptions.type ?? ''} onChange={e => setOptions(prev => ({ ...prev, cornersDotOptions: { ...prev.cornersDotOptions, type: e.target.value as CornerDotType } }))} options={CORNER_DOT_TYPES} />
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-2">
                 <div className="flex-1">
                     <label className="text-xs text-zinc-400 block mb-1">QR embedded logo</label>
                     <input type="file" accept="image/*" onChange={handleFileChange} className="text-xs text-zinc-500 w-full" />
@@ -150,7 +150,7 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
                 />
             </div>
 
-            <button onClick={handleGenerate} className="w-full bg-gold text-black font-bold py-2 rounded hover:bg-gold-600 transition-colors">
+            <button onClick={handleGenerate} className="w-full bg-gold text-black font-bold py-1.5 rounded hover:bg-gold-600 transition-colors">
                 Apply QR to Card
             </button>
         </div>
