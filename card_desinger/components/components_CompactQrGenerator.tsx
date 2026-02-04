@@ -98,10 +98,10 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
     );
 
     return (
-        <div className="flex flex-col gap-4 text-white animate-slide-up">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-2">
-                <span className="text-xs font-bold text-gold uppercase tracking-wider">QR Code Designer</span>
-                <button onClick={onCancel} className="text-xs text-zinc-400 bg-zinc-800 px-2 py-1 rounded">Cancel</button>
+        <div className="flex flex-col gap-2 text-white animate-slide-up px-3 pb-3 pt-2">
+            <div className="flex items-center justify-between border-b border-zinc-700/50 pb-1 mb-1">
+                <span className="text-[10px] font-bold text-gold uppercase tracking-wider pl-1">QR Code Designer</span>
+                <button onClick={onCancel} className="text-[10px] text-zinc-400 bg-zinc-800/80 px-2 py-0.5 rounded hover:text-white transition-colors">Cancel</button>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -150,7 +150,7 @@ const CompactQrGenerator: React.FC<CompactQrGeneratorProps> = ({ onUpdate, onCan
                 />
             </div>
 
-            <button onClick={handleGenerate} className="w-full bg-gold text-black font-bold py-1.5 rounded hover:bg-gold-600 transition-colors">
+            <button onClick={handleGenerate} className="w-full bg-gold text-black font-bold py-1 rounded hover:bg-gold-600 transition-colors text-xs mt-1">
                 Apply QR to Card
             </button>
         </div>
