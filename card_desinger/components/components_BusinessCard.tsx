@@ -145,26 +145,28 @@ const BusinessCard = React.forwardRef<HTMLDivElement, BusinessCardProps>(({
               ))}
 
               {/* NFC Icon - Draggable */}
-              <div
-                className={`absolute cursor-move touch-none z-30 ${selectedElementId === 'nfc-icon' ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50' : ''}`}
-                style={{
-                  left: `${data.nfcIconPosition?.x ?? 92}%`,
-                  top: `${data.nfcIconPosition?.y ?? 10}%`,
-                  transform: 'translate(-50%, -50%)',
-                  WebkitTapHighlightColor: 'transparent'
-                }}
-                onMouseDown={(e) => onDragStart('image', 'nfc-icon', e)}
-                onTouchStart={(e) => onDragStart('image', 'nfc-icon', e)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect('image', 'nfc-icon');
-                }}
-              >
-                <NfcIcon className="w-14 h-14 opacity-80 pointer-events-none" fill={nfcIconColor} />
-              </div>
+              {data.showNfcIcon !== false && (
+                <div
+                  className={`absolute cursor-move touch-none z-30 ${selectedElementId === 'nfc-icon' ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50' : ''}`}
+                  style={{
+                    left: `${data.nfcIconPosition?.x ?? 92}%`,
+                    top: `${data.nfcIconPosition?.y ?? 10}%`,
+                    transform: 'translate(-50%, -50%)',
+                    WebkitTapHighlightColor: 'transparent'
+                  }}
+                  onMouseDown={(e) => onDragStart('image', 'nfc-icon', e)}
+                  onTouchStart={(e) => onDragStart('image', 'nfc-icon', e)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect('image', 'nfc-icon');
+                  }}
+                >
+                  <NfcIcon className="w-14 h-14 opacity-80 pointer-events-none" fill={nfcIconColor} />
+                </div>
+              )}
 
               {/* Branding - Draggable (Back side only) */}
-              {side === 'Back' && (
+              {side === 'Back' && data.showBranding !== false && (
                 <div
                   className={`absolute cursor-move touch-none z-30 ${selectedElementId === 'branding' ? 'ring-2 ring-gold ring-offset-2 ring-offset-black/50' : ''}`}
                   style={{

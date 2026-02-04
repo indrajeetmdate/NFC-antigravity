@@ -156,15 +156,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         setMode('TOOLS');
     };
 
-    const handleThemeColorChange = (color: string) => {
-        // 1. Update NFC Icon and Branding Text Color (for back side)
+    const handleNfcColorChange = (color: string) => {
+        // Update NFC Icon and Branding Text Color (for back side)
         setCardData(prev => ({
             ...prev,
             nfcIconColor: color,
             urlColor: color
         }));
+    };
 
-        // 2. Regenerate QR Code with new color
+    const handleQrColorChange = (color: string) => {
+        // Regenerate QR Code with new color
         setCardData(prev => {
             const qrImage = prev.images.find(i => i.id === 'qr');
             if (!qrImage?.url) return prev;
@@ -190,6 +192,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             return prev;
         });
+    };
+
+    const toggleNfcVisibility = () => {
+        setCardData(prev => ({
+            ...prev,
+            showNfcIcon: prev.showNfcIcon === false ? true : false,
+            showBranding: prev.showBranding === false ? true : false
+        }));
     };
 
     const handleDelete = () => {
@@ -337,7 +347,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <div className="space-y-4">
                                 <div className="p-3 bg-zinc-800/50 rounded border border-zinc-700/50">
                                     <p className="text-[10px] text-zinc-400 leading-relaxed">
-                                        Use the <span className="text-gold font-bold">Theme Color</span> on the Home screen to update NFC Icon, Branding, and QR Code colors simultaneously.
+                                        Customize your card's appearance with separate controls for NFC/Branding and QR Code.
                                     </p>
                                 </div>
                             </div>
@@ -552,24 +562,66 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </button>
                 </div>
 
-                {/* Theme Color Picker - Large */}
-                <div className="flex-1 sm:flex-none sm:w-auto">
-                    <div className="flex items-center gap-4 bg-zinc-800/70 px-5 py-3 rounded-xl border border-zinc-700 h-full">
-                        <div className="relative group">
-                            <input
-                                type="color"
-                                value={activeCardData.nfcIconColor || '#d7ba52'}
-                                onChange={(e) => handleThemeColorChange(e.target.value)}
-                                className="w-12 h-12 rounded-lg border-2 border-zinc-500 cursor-pointer bg-transparent p-0 appearance-none overflow-hidden hover:border-gold transition-all"
-                                title="Theme color - Updates QR, NFC Icon & Branding"
-                            />
-                            <div className="absolute inset-0 pointer-events-none rounded-lg ring-2 ring-transparent group-hover:ring-gold/50 transition-all"></div>
+                {/* Theme Colors & Toggles - Large */}
+                <div className="flex-1 sm:flex-none sm:w-auto flex flex-col gap-2">
+                    <div className="flex gap-2">
+                        {/* NFC Color */}
+                        <div className="flex items-center gap-3 bg-zinc-800/70 px-3 py-2 rounded-xl border border-zinc-700 h-full">
+                            <div className="relative group">
+                                <input
+                                    type="color"
+                                    value={activeCardData.nfcIconColor || '#d7ba52'}
+                                    onChange={(e) => handleNfcColorChange(e.target.value)}
+                                    className="w-10 h-10 rounded-lg border-2 border-zinc-500 cursor-pointer bg-transparent p-0 appearance-none overflow-hidden hover:border-gold transition-all"
+                                    title="NFC & Branding Color"
+                                />
+                            </div>
+                            <div className="text-left">
+                                <div className="text-xs font-bold text-white">NFC Color</div>
+                            </div>
                         </div>
-                        <div className="text-left">
-                            <div className="text-sm font-bold text-white">Theme Color</div>
-                            <div className="text-[11px] text-zinc-400">Changes NFC icon, QR code & branding</div>
+
+                        {/* QR Color */}
+                        <div className="flex items-center gap-3 bg-zinc-800/70 px-3 py-2 rounded-xl border border-zinc-700 h-full">
+                            <div className="relative group">
+                                <input // Find current QR color approx or default? We don't track QR color explicitly in activeCardData root, usually implicit.
+                                    // But we should track it or just use nfcIconColor as default if unknown.
+                                    // Actually, we don't know the QR color unless we parse it. For now, let's use nfcIconColor as default value but it triggers handleQrColorChange.
+                                    // Or we can assume user updates it.
+                                    type="color"
+                                    defaultValue={activeCardData.nfcIconColor || '#d7ba52'} // Improvement: Ideally we track qrColor.
+                                    onBlur={(e) => handleQrColorChange(e.target.value)} // Use onBlur to avoid regenerating on every drag? No, onChange is better, but debounced.
+                                    // For now, let's use onChange but maybe it's heavy? onRegenerateQr uses debounce in parent? No.
+                                    // We'll trust user is careful or use onBlur/change interaction.
+                                    // Let's use onChange for responsiveness.
+                                    onChange={(e) => handleQrColorChange(e.target.value)}
+                                    className="w-10 h-10 rounded-lg border-2 border-zinc-500 cursor-pointer bg-transparent p-0 appearance-none overflow-hidden hover:border-gold transition-all"
+                                    title="QR Code Color"
+                                />
+                            </div>
+                            <div className="text-left">
+                                <div className="text-xs font-bold text-white">QR Color</div>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Hide Toggle */}
+                    <button
+                        onClick={toggleNfcVisibility}
+                        className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-bold transition-all ${activeCardData.showNfcIcon === false ? 'bg-red-900/20 border-red-800 text-red-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}
+                    >
+                        {activeCardData.showNfcIcon === false ? (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                <span>Shown: Hidden</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                <span>NFC & Branding: Visible</span>
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
 
