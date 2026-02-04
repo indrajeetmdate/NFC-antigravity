@@ -650,9 +650,11 @@ const CardDesignerPage: React.FC = () => {
     const setActiveData = activeSide === 'front' ? setFrontData : setBackData;
 
     const handleDeselect = (e: React.MouseEvent | React.TouchEvent) => {
-        if (e.target === e.currentTarget) {
-            setSelectedElement(null);
-        }
+        // Relaxed check: Allow deselect on any background click
+        // Only stop if the click originated from a control/interactive element not meant to deselect
+        if (e.defaultPrevented) return;
+
+        setSelectedElement(null);
     };
 
     const containerClasses = cardType === 'standie'
@@ -738,8 +740,9 @@ const CardDesignerPage: React.FC = () => {
                                 onDragStart={(type, id, e) => handleDragStart('front', type, id, e)}
                                 width={CARD_WIDTH}
                                 height={CARD_HEIGHT}
-                                selectedElementId={selectedElement?.id || null}
-                                onSelect={(type, id) => setSelectedElement({ type, id })}
+                                selectedElementId={isDesignModeActive ? (selectedElement?.id || null) : null}
+                                onSelect={(type, id) => isDesignModeActive && setSelectedElement({ type, id })}
+                                onClick={() => setSelectedElement(null)}
                             />
                         </div>
                     </div>
@@ -753,8 +756,9 @@ const CardDesignerPage: React.FC = () => {
                                 onDragStart={(type, id, e) => handleDragStart('back', type, id, e)}
                                 width={CARD_WIDTH}
                                 height={CARD_HEIGHT}
-                                selectedElementId={selectedElement?.id || null}
-                                onSelect={(type, id) => setSelectedElement({ type, id })}
+                                selectedElementId={isDesignModeActive ? (selectedElement?.id || null) : null}
+                                onSelect={(type, id) => isDesignModeActive && setSelectedElement({ type, id })}
+                                onClick={() => setSelectedElement(null)}
                             />
                         </div>
                     </div>
