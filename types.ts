@@ -76,6 +76,8 @@ export interface Profile {
   created_at: string;
   updated_at: string;
   subscription_end_date?: string | null; // New: Track subscription expiry (timestamptz)
+  gst_number?: string | null;
+  billing_address?: string | null;
 }
 
 export type ProfileInsert = Omit<Profile, 'id' | 'created_at' | 'updated_at'>;

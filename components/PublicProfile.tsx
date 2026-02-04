@@ -360,8 +360,20 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractiv
         )}
       </div>
 
-      <div className="pb-8 text-sm text-zinc-500">
-        <a href="https://www.canopycorp.in" target="_blank" rel="noopener noreferrer" className="hover:text-gold transition-colors">
+      <div className="pb-8 text-sm text-zinc-500 text-center space-y-4">
+        {/* Business Details Footer */}
+        {(profile.gst_number || profile.billing_address) && (
+          <div className="flex flex-col items-center gap-1 opacity-70">
+            {profile.gst_number && (
+              <p className="text-[10px] uppercase tracking-wider font-medium">GST No: <span className="text-zinc-400 font-mono">{profile.gst_number}</span></p>
+            )}
+            {profile.billing_address && (
+              <p className="text-[10px] max-w-xs whitespace-pre-line leading-snug">{profile.billing_address}</p>
+            )}
+          </div>
+        )}
+
+        <a href="https://www.canopycorp.in" target="_blank" rel="noopener noreferrer" className="hover:text-gold transition-colors block">
           NFC cards by CanopyCorp
         </a>
       </div>

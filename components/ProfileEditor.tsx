@@ -22,6 +22,8 @@ const INITIAL_STATE: Partial<Profile> = {
     email: '',
     website: 'https://www.canopycorp.in',
     delivery_address_url: '',
+    gst_number: '',
+    billing_address: '',
     storage_folder_path: null,
     custom_button_text: '', // Main CTA text
     custom_button_url: '', // Main CTA URL (for Standies)
@@ -97,6 +99,7 @@ const ProfileEditor: React.FC = () => {
     const [bgPhoto, setBgPhoto] = useState<File | null>(null);
     const [backgroundTemplates, setBackgroundTemplates] = useState<{ name: string; url: string; }[]>([]);
     const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>(getPreferredPreviewMode());
+    const [showBusinessDetails, setShowBusinessDetails] = useState(false);
 
     const debounceTimeout = useRef<number | null>(null);
     const isSavingRef = useRef(false);
@@ -162,7 +165,9 @@ const ProfileEditor: React.FC = () => {
                         ...prev,
                         full_name: user.user_metadata?.full_name || prev.full_name,
                         phone: user.user_metadata?.phone || prev.phone,
-                        email: user.email || prev.email
+                        email: user.email || prev.email,
+                        gst_number: '',
+                        billing_address: ''
                     }));
                 }
             });
@@ -507,6 +512,44 @@ const ProfileEditor: React.FC = () => {
                                     <div><label className={labelClass}>Email</label><input type="email" name="email" value={formData.email || ''} onChange={handleInputChange} className={inputClass} /></div>
                                 </div>
                                 <div><label className={labelClass}>Bio</label><textarea name="bio" value={formData.bio || ''} onChange={handleInputChange} className={inputClass} rows={2} /></div>
+
+                                {/* Business Details Section (Collapsible) */}
+                                <div className="border border-zinc-800 rounded-lg overflow-hidden mt-4">
+                                    <button
+                                        onClick={() => setShowBusinessDetails(!showBusinessDetails)}
+                                        className="w-full flex justify-between items-center bg-zinc-800/50 p-3 hover:bg-zinc-800 transition-colors"
+                                    >
+                                        <span className="text-xs font-bold text-zinc-300 uppercase tracking-wide">Business Details</span>
+                                        <span className={`text-zinc-500 transform transition-transform ${showBusinessDetails ? 'rotate-180' : ''}`}>▼</span>
+                                    </button>
+
+                                    {showBusinessDetails && (
+                                        <div className="p-3 bg-zinc-900/50 space-y-3 animate-fade-in border-t border-zinc-800">
+                                            <div>
+                                                <label className={labelClass}>GST Number</label>
+                                                <input
+                                                    type="text"
+                                                    name="gst_number"
+                                                    value={formData.gst_number || ''}
+                                                    onChange={handleInputChange}
+                                                    placeholder="e.g. 27AAAAA0000A1Z5"
+                                                    className={inputClass}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className={labelClass}>Billing Address</label>
+                                                <textarea
+                                                    name="billing_address"
+                                                    value={formData.billing_address || ''}
+                                                    onChange={handleInputChange}
+                                                    placeholder="Full registered business address"
+                                                    className={inputClass}
+                                                    rows={3}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
 

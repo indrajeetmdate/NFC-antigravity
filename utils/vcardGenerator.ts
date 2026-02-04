@@ -12,7 +12,18 @@ export const generateVCardContent = (profile: Partial<Profile>): string => {
     profile.email ? `EMAIL;TYPE=INTERNET:${profile.email}` : '',
     profile.website ? `URL:${profile.website}` : '',
     profile.bio ? `NOTE:${profile.bio}` : '',
+    profile.billing_address ? `ADR;TYPE=WORK,POSTAL:;;${profile.billing_address.replace(/\n/g, ', ')};;;;` : '', // Basic single-line address mapping
   ];
+
+  // Append GST to Note if present
+  if (profile.gst_number) {
+    const noteIndex = content.findIndex(c => c.startsWith('NOTE:'));
+    if (noteIndex !== -1) {
+      content[noteIndex] += `\\nGST No: ${profile.gst_number}`;
+    } else {
+      content.push(`NOTE:GST No: ${profile.gst_number}`);
+    }
+  }
 
   // Helper to check if string is a valid URL
   const isValidUrl = (string: string) => {
@@ -21,42 +32,42 @@ export const generateVCardContent = (profile: Partial<Profile>): string => {
 
   // Add Custom Elements (Buttons & Socials)
   if (profile.custom_elements && Array.isArray(profile.custom_elements)) {
-      profile.custom_elements.forEach((elem: CustomButtonElement) => {
-          if (!elem.isActive || !elem.url) return;
-          
-          let label = elem.label || 'Link';
-          
-          if (elem.type === 'social') {
-              // Format Label (e.g. "whatsapp" -> "WhatsApp")
-              const presetLabel = elem.subtype ? elem.subtype.charAt(0).toUpperCase() + elem.subtype.slice(1) : 'Social';
-              
-              if (elem.subtype === 'whatsapp') {
-                   // Ensure it's a clickable URL for VCard
-                   const cleanNum = elem.url.replace(/\D/g, '');
-                   // If user entered full URL, use it. If just number, format it.
-                   const finalUrl = elem.url.startsWith('http') ? elem.url : `https://wa.me/${cleanNum}`;
-                   content.push(`URL;TYPE=WhatsApp:${finalUrl}`); 
-              } else {
-                   content.push(`URL;TYPE=${presetLabel}:${elem.url}`);
-              }
-          } else {
-              // Standard Custom Links
-              // Remove special chars from label for VCard TYPE compatibility
-              const cleanLabel = label.replace(/[^a-zA-Z0-9]/g, '');
-              content.push(`URL;TYPE=${cleanLabel}:${elem.url}`);
-          }
-      });
+    profile.custom_elements.forEach((elem: CustomButtonElement) => {
+      if (!elem.isActive || !elem.url) return;
+
+      let label = elem.label || 'Link';
+
+      if (elem.type === 'social') {
+        // Format Label (e.g. "whatsapp" -> "WhatsApp")
+        const presetLabel = elem.subtype ? elem.subtype.charAt(0).toUpperCase() + elem.subtype.slice(1) : 'Social';
+
+        if (elem.subtype === 'whatsapp') {
+          // Ensure it's a clickable URL for VCard
+          const cleanNum = elem.url.replace(/\D/g, '');
+          // If user entered full URL, use it. If just number, format it.
+          const finalUrl = elem.url.startsWith('http') ? elem.url : `https://wa.me/${cleanNum}`;
+          content.push(`URL;TYPE=WhatsApp:${finalUrl}`);
+        } else {
+          content.push(`URL;TYPE=${presetLabel}:${elem.url}`);
+        }
+      } else {
+        // Standard Custom Links
+        // Remove special chars from label for VCard TYPE compatibility
+        const cleanLabel = label.replace(/[^a-zA-Z0-9]/g, '');
+        content.push(`URL;TYPE=${cleanLabel}:${elem.url}`);
+      }
+    });
   } else if (profile.social_links) {
-      // Fallback for Legacy Data
-      const sl = profile.social_links;
-      if (sl.whatsapp) content.push(`URL;TYPE=WhatsApp:https://wa.me/${sl.whatsapp.replace(/\D/g, '')}`);
-      if (sl.linkedin) content.push(`URL;TYPE=LinkedIn:${sl.linkedin}`);
-      if (sl.twitter) content.push(`URL;TYPE=Twitter:${sl.twitter}`);
-      if (sl.instagram) content.push(`URL;TYPE=Instagram:${sl.instagram}`);
-      if (sl.facebook) content.push(`URL;TYPE=Facebook:${sl.facebook}`);
-      if (sl.youtube) content.push(`URL;TYPE=YouTube:${sl.youtube}`);
-      if (sl.maps) content.push(`URL;TYPE=Maps:${sl.maps}`);
-      if (sl.custom_url) content.push(`URL;TYPE=Custom:${sl.custom_url}`);
+    // Fallback for Legacy Data
+    const sl = profile.social_links;
+    if (sl.whatsapp) content.push(`URL;TYPE=WhatsApp:https://wa.me/${sl.whatsapp.replace(/\D/g, '')}`);
+    if (sl.linkedin) content.push(`URL;TYPE=LinkedIn:${sl.linkedin}`);
+    if (sl.twitter) content.push(`URL;TYPE=Twitter:${sl.twitter}`);
+    if (sl.instagram) content.push(`URL;TYPE=Instagram:${sl.instagram}`);
+    if (sl.facebook) content.push(`URL;TYPE=Facebook:${sl.facebook}`);
+    if (sl.youtube) content.push(`URL;TYPE=YouTube:${sl.youtube}`);
+    if (sl.maps) content.push(`URL;TYPE=Maps:${sl.maps}`);
+    if (sl.custom_url) content.push(`URL;TYPE=Custom:${sl.custom_url}`);
   }
 
   content.push('END:VCARD');
