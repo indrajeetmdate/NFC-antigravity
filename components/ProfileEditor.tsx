@@ -390,9 +390,44 @@ const ProfileEditor: React.FC = () => {
             const payload = { ...finalData, storage_folder_path: folderPath, updated_at: new Date().toISOString() };
 
             if (id) {
-                await client.from('profiles').update(payload as ProfileUpdate).eq('id', id);
+                console.log("Updating profile:", id, "Payload:", payload); // DEBUG
+                // Add .select() to return the updated row for verification
+                const { data, error } = await client.from('profiles').update(payload as ProfileUpdate).eq('id', id).select().single();
+
+                if (error) {
+                    console.error("Supabase Update Error:", error);
+                    throw error;
+                }
+
+                // VERIFICATION STEP: Check if critical fields persisted
+                if (data) {
+                    const verifyField = (field: keyof Profile, label: string) => {
+                        // Loose comparison to handle null/undefined/empty string diffs
+                        const payloadVal = (payload as any)[field] || '';
+                        const dbVal = (data as any)[field] || '';
+                        if (payloadVal !== dbVal) {
+                            console.error(`Verification Failed for ${label}: Expected '${payloadVal}', got '${dbVal}'`);
+                            return false;
+                        }
+                        return true;
+                    };
+
+                    const gstOk = verifyField('gst_number', 'GST Number');
+                    const addressOk = verifyField('billing_address', 'Billing Address');
+                    // const slugOk = verifyField('profile_slug', 'Profile Slug'); // Slug might be auto-modified by DB triggers if any
+
+                    if (!gstOk || !addressOk) {
+                        throw new Error("Save reported success, but data was not persisted in Database. Please check if columns 'gst_number' and 'billing_address' exist in your Supabase 'profiles' table.");
+                    }
+                }
+
             } else {
-                const { data } = await client.from('profiles').insert({ ...payload, user_id: user.id } as ProfileInsert).select().single();
+                console.log("Creating profile. Payload:", payload); // DEBUG
+                const { data, error } = await client.from('profiles').insert({ ...payload, user_id: user.id } as ProfileInsert).select().single();
+                if (error) {
+                    console.error("Supabase Insert Error:", error);
+                    throw error;
+                }
                 if (data && mountedRef.current) navigate(`/profile/${data.id}/edit`, { replace: true });
             }
 
@@ -506,6 +541,24 @@ const ProfileEditor: React.FC = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div><label className={labelClass}>Full Name</label><input type="text" name="full_name" value={formData.full_name || ''} onChange={handleInputChange} className={inputClass} /></div>
                                     <div><label className={labelClass}>Company / Title</label><input type="text" name="company" value={formData.company || ''} onChange={handleInputChange} className={inputClass} /></div>
+                                </div>
+                                <div>
+                                    <label className={labelClass}>
+                                        Profile Slug (URL)
+                                        <span className="text-[10px] text-zinc-500 ml-2 font-normal">canopycorp.in/p/<strong>{formData.profile_slug}</strong></span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="profile_slug"
+                                        value={formData.profile_slug || ''}
+                                        onChange={(e) => {
+                                            // Allow only alphanumeric, hyphens, underscores
+                                            const val = e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '');
+                                            setFormData(prev => ({ ...prev, profile_slug: val }));
+                                        }}
+                                        className={inputClass}
+                                        placeholder="unique-username"
+                                    />
                                 </div>
                                 <div className="grid grid-cols-2 gap-3 border-t border-zinc-800 pt-4">
                                     <div><label className={labelClass}>Phone</label><input type="tel" name="phone" value={formData.phone || ''} onChange={handleInputChange} className={inputClass} /></div>
