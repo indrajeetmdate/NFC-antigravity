@@ -17,8 +17,10 @@ const QRWidgetPage: React.FC = () => {
     useEffect(() => {
         if (!slug || !qrRef.current) return;
 
-        // Clear any previous QR
-        qrRef.current.innerHTML = '';
+        // Clear only children appended by QRCodeStyling (not React-managed nodes)
+        while (qrRef.current.firstChild) {
+            qrRef.current.removeChild(qrRef.current.firstChild);
+        }
 
         // Use the globally loaded QRCodeStyling from CDN
         if (typeof QRCodeStyling !== 'undefined') {
@@ -92,11 +94,14 @@ const QRWidgetPage: React.FC = () => {
 
                 {/* QR Card */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-2xl shadow-black/40 w-full flex flex-col items-center gap-4">
-                    <div ref={qrRef} className="rounded-2xl overflow-hidden flex items-center justify-center min-h-[200px]">
-                        {!qrReady && (
+                    {/* Spinner - shown only before QR is ready */}
+                    {!qrReady && (
+                        <div className="flex items-center justify-center min-h-[200px]">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gold"></div>
-                        )}
-                    </div>
+                        </div>
+                    )}
+                    {/* QR container - separate from React-managed spinner */}
+                    <div ref={qrRef} className="rounded-2xl overflow-hidden flex items-center justify-center" style={{ display: qrReady ? 'flex' : 'none' }}></div>
 
                     <p className="text-xs text-zinc-500 text-center break-all select-all font-mono">
                         {profileUrl}
