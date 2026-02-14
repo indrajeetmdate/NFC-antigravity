@@ -264,10 +264,8 @@ const Dashboard: React.FC = () => {
 
           {/* QR Widget Button - Below Profile Card, Only for Paid Users */}
           {profile.upi_transaction_id && profile.profile_slug && (
-            <a
-              href={`/qr-widget.html?slug=${encodeURIComponent(profile.profile_slug)}&name=${encodeURIComponent(profile.full_name || 'My Profile')}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to={`/qr/${profile.profile_slug}`}
               className="group block w-full bg-zinc-900 hover:bg-zinc-900/80 rounded-2xl border border-zinc-800 hover:border-gold/40 p-5 transition-all duration-300 hover:-translate-y-0.5 shadow-lg hover:shadow-gold/5"
             >
               <div className="flex items-center gap-4">
@@ -288,7 +286,7 @@ const Dashboard: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
-            </a>
+            </Link>
           )}
 
           {/* Print Designs Section */}

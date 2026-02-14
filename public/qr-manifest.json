@@ -1,5 +1,5 @@
 {
-    "name": "QR Card by CanopyCorp",
+    "name": "My QR Card",
     "short_name": "QR Card",
     "description": "Instant QR code for your digital profile - share anywhere",
     "start_url": "/qr-widget.html",
@@ -9,7 +9,7 @@
     "theme_color": "#09090b",
     "icons": [
         {
-            "src": "/canopycorp-icon.svg",
+            "src": "/qr-icon.svg",
             "sizes": "any",
             "type": "image/svg+xml",
             "purpose": "any maskable"
