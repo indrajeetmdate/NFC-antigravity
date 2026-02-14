@@ -1,0 +1,7 @@
+{
+  "name": "NFC cards by CanopyCorp",
+  "description": "Create powerful digital business cards with NFC support by CanopyCorp.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

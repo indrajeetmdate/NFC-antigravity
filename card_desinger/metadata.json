@@ -1,0 +1,6 @@
+
+{
+  "name": "Dynamic Business Card Generator",
+  "description": "An application to generate personalized business cards. Users can manually input details, upload logos and QR codes, and customize the design and text color.",
+  "requestFramePermissions": []
+}
