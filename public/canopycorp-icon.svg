@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="64" fill="#09090b"/>
+  <!-- Tree trunk -->
+  <rect x="244" y="300" width="24" height="100" rx="4" fill="#d7ba52"/>
+  <!-- Canopy layers - stylized tree -->
+  <ellipse cx="256" cy="220" rx="120" ry="80" fill="#d7ba52" opacity="0.15"/>
+  <ellipse cx="256" cy="230" rx="100" ry="65" fill="#d7ba52" opacity="0.25"/>
+  <ellipse cx="256" cy="240" rx="80" ry="50" fill="#d7ba52" opacity="0.4"/>
+  <!-- Leaf/canopy main shape -->
+  <path d="M256 140 C200 160, 160 200, 170 260 C175 270, 185 280, 200 285 C210 275, 230 265, 256 260 C282 265, 302 275, 312 285 C327 280, 337 270, 342 260 C352 200, 312 160, 256 140Z" fill="#d7ba52"/>
+  <!-- Inner canopy detail -->
+  <path d="M256 165 C218 180, 192 210, 200 250 C210 245, 232 238, 256 236 C280 238, 302 245, 312 250 C320 210, 294 180, 256 165Z" fill="#09090b" opacity="0.2"/>
+  <!-- NFC signal arcs -->
+  <path d="M360 160 C380 180, 390 210, 385 240" stroke="#d7ba52" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <path d="M375 145 C400 170, 412 210, 405 250" stroke="#d7ba52" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.3"/>
+  <!-- Ground line -->
+  <rect x="180" y="400" width="152" height="4" rx="2" fill="#d7ba52" opacity="0.3"/>
+  <!-- CC text -->
+  <text x="256" y="460" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="36" fill="#d7ba52" opacity="0.6">CANOPYCORP</text>
+</svg>

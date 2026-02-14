@@ -7,11 +7,11 @@
     <meta name="theme-color" content="#09090b" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="My QR Card" />
+    <meta name="apple-mobile-web-app-title" content="QR Card" />
     <link rel="manifest" href="/qr-manifest.json" />
-    <link rel="icon" href="/qr-icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/qr-icon.svg" />
-    <title>My QR Card</title>
+    <link rel="icon" href="/canopycorp-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/canopycorp-icon.svg" />
+    <title>QR Card by CanopyCorp</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/qr-code-styling@1.6.0/lib/qr-code-styling.js"></script>
     <style>
@@ -242,16 +242,28 @@
     </div>
 
     <script>
-        // --- Parse URL params ---
+        // --- Parse URL params with localStorage persistence ---
         const params = new URLSearchParams(window.location.search);
-        const slug = params.get('slug') || '';
-        const name = params.get('name') || 'My Profile';
-        const profileUrl = `https://canopycorp.in/#/p/${slug}`;
+        let slug = params.get('slug') || '';
+        let name = params.get('name') || '';
+
+        // If we have URL params, save them to localStorage for offline/installed use
+        if (slug) {
+            localStorage.setItem('qr_widget_slug', slug);
+            localStorage.setItem('qr_widget_name', name || 'My Profile');
+        } else {
+            // No URL params (likely opened from home screen) — read from localStorage
+            slug = localStorage.getItem('qr_widget_slug') || '';
+            name = localStorage.getItem('qr_widget_name') || 'My Profile';
+        }
+
+        if (!name) name = 'My Profile';
+        const profileUrl = slug ? `https://canopycorp.in/#/p/${slug}` : '';
 
         // --- Update UI ---
         document.getElementById('user-name').textContent = decodeURIComponent(name);
-        document.getElementById('profile-url').textContent = profileUrl;
-        document.title = `${decodeURIComponent(name)} - QR Card`;
+        document.getElementById('profile-url').textContent = profileUrl || 'No profile configured';
+        document.title = slug ? `${decodeURIComponent(name)} - QR Card` : 'QR Card';
 
         // --- Update manifest start_url dynamically ---
         // We need to update the manifest link to include the slug
@@ -289,7 +301,7 @@
             qrCode.append(document.getElementById('qr-code'));
         } else {
             document.getElementById('qr-code').innerHTML =
-                '<p style="color:#a1a1aa;padding:40px;text-align:center;">No profile slug provided</p>';
+                '<p style="color:#a1a1aa;padding:40px;text-align:center;">No profile configured. Please open from your Dashboard first.</p>';
         }
 
         // --- Service Worker ---
