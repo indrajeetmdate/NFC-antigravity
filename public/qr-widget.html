@@ -7,13 +7,14 @@
     <meta name="theme-color" content="#09090b" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="QR Tray" />
+    <meta name="apple-mobile-web-app-title" content="Canopy QR" />
     <link rel="manifest" href="/qr-manifest.json" />
     <link rel="icon" href="/CC_blackbg.png" type="image/png" />
     <link rel="apple-touch-icon" href="/CC_blackbg.png" />
-    <title>Canopy QR Tray</title>
+    <title>Canopy QR</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/qr-code-styling@1.6.0/lib/qr-code-styling.js"></script>
+    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
     <style>
         * {
             margin: 0;
@@ -527,51 +528,171 @@
             cursor: pointer;
         }
 
+        /* ── QR Scanner ── */
+        .scan-btn {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            background: var(--gold-dim);
+            border: 1px solid rgba(215,186,82,0.25);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.15s ease;
+            color: var(--gold);
+        }
+        .scan-btn:active { transform: scale(0.9); }
+        .scan-btn svg { width: 20px; height: 20px; }
+
+        .scanner-overlay {
+            position: fixed; inset: 0;
+            background: var(--bg);
+            z-index: 80;
+            display: none;
+            flex-direction: column;
+        }
+        .scanner-overlay.show { display: flex; }
+
+        .scanner-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .scanner-header span { font-size: 15px; font-weight: 700; color: var(--gold); }
+        .scanner-close {
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); padding: 6px 14px; border-radius: 10px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+
+        .scanner-viewport {
+            flex: 1; position: relative; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            background: #000;
+        }
+        .scanner-viewport video {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .scanner-viewport canvas { display: none; }
+
+        .scanner-frame {
+            position: absolute;
+            width: 220px; height: 220px;
+            border: 2px solid var(--gold);
+            border-radius: 20px;
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        .scanner-frame::after {
+            content: ''; position: absolute; inset: -6px;
+            border: 3px solid var(--gold); border-radius: 24px;
+            opacity: 0.3;
+        }
+        .scanner-hint {
+            position: absolute; bottom: 40px; left: 0; right: 0;
+            text-align: center; font-size: 13px; color: var(--text-muted);
+            font-weight: 600;
+        }
+        .scanner-result {
+            position: absolute; bottom: 80px; left: 16px; right: 16px;
+            background: var(--surface); border: 1px solid var(--gold);
+            border-radius: 16px; padding: 14px 16px;
+            display: none;
+        }
+        .scanner-result.show { display: block; }
+        .scanner-result-text {
+            font-size: 12px; color: var(--text); word-break: break-all;
+            margin-bottom: 10px;
+        }
+        .scanner-result-btn {
+            background: var(--gold); color: var(--bg); border: none;
+            padding: 10px; width: 100%; border-radius: 10px;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+        }
+
+        /* ── Install Modal ── */
+        .install-modal {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.88); backdrop-filter: blur(8px);
+            z-index: 70;
+            display: none; align-items: center; justify-content: center;
+        }
+        .install-modal.show { display: flex; }
+        .install-modal-card {
+            background: var(--surface); border: 1px solid var(--border);
+            padding: 32px 24px; border-radius: 28px;
+            text-align: center; max-width: 92%; width: 320px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .install-modal-card img {
+            width: 72px; height: 72px; border-radius: 18px;
+            margin-bottom: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        .install-modal-card h2 {
+            font-size: 18px; font-weight: 800; margin-bottom: 6px;
+        }
+        .install-modal-card p {
+            font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;
+        }
+        .install-modal-primary {
+            background: var(--gold); color: var(--bg); border: none;
+            padding: 14px 0; width: 100%; border-radius: 14px;
+            font-weight: 700; font-size: 15px; cursor: pointer;
+            margin-bottom: 10px; transition: transform 0.1s;
+        }
+        .install-modal-primary:active { transform: scale(0.97); }
+        .install-modal-dismiss {
+            background: none; border: none; color: var(--text-dim);
+            font-size: 13px; cursor: pointer;
+        }
+
         /* ── Animations ── */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .animate-in {
-            animation: fadeIn 0.4s ease-out;
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-in { animation: fadeIn 0.4s ease-out; }
     </style>
 </head>
 
 <body>
     <!-- Header -->
     <div class="header">
-        <span class="header-title">Canopy QR Tray</span>
-        <div class="badge" id="offline-badge" style="display:none;">
-            <span class="badge-dot"></span>
-            Offline Ready
+        <span class="header-title">Canopy QR</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div class="badge" id="offline-badge" style="display:none;">
+                <span class="badge-dot"></span>
+                Offline Ready
+            </div>
+            <button class="scan-btn" id="scan-btn" title="Scan QR">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h3"/><path d="M20 7V4h-3"/><path d="M4 17v3h3"/><path d="M20 17v3h-3"/><rect x="7" y="7" width="10" height="10" rx="1"/><line x1="12" y1="7" x2="12" y2="17"/></svg>
+            </button>
         </div>
     </div>
 
-    <!-- Install Banner -->
-    <div class="install-banner" id="install-banner">
-        <span>📲 Add to Home Screen</span>
-        <button id="install-btn">Install</button>
+    <!-- QR Scanner Overlay -->
+    <div class="scanner-overlay" id="scanner-overlay">
+        <div class="scanner-header">
+            <span>Scan QR Code</span>
+            <button class="scanner-close" id="scanner-close">Close</button>
+        </div>
+        <div class="scanner-viewport">
+            <video id="scanner-video" autoplay playsinline muted></video>
+            <canvas id="scanner-canvas"></canvas>
+            <div class="scanner-frame"></div>
+            <div class="scanner-hint">Point at a QR code</div>
+            <div class="scanner-result" id="scanner-result">
+                <div class="scanner-result-text" id="scanner-result-text"></div>
+                <button class="scanner-result-btn" id="scanner-result-open">Open Link</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Install Modal (auto-show) -->
+    <div class="install-modal" id="install-modal">
+        <div class="install-modal-card">
+            <img src="/CC_blackbg.png" alt="Canopy QR" />
+            <h2>Install Canopy QR</h2>
+            <p>Add to your Home Screen for instant offline access to all your QR codes.</p>
+            <button class="install-modal-primary" id="install-modal-btn">Install App</button>
+            <button class="install-modal-dismiss" id="install-modal-dismiss">Not Now</button>
+        </div>
     </div>
 
     <!-- Main QR Display -->
@@ -895,7 +1016,7 @@
         }
 
         // ═══════════════════════════════════════════════
-        // Install Prompt
+        // Install Prompt — auto-show native install modal
         // ═══════════════════════════════════════════════
         let deferredPrompt = null;
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -903,17 +1024,20 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
+            // Auto-show install modal after 800ms (native install)
             if (!isStandalone) {
-                document.getElementById('install-banner').classList.add('show');
+                setTimeout(() => {
+                    document.getElementById('install-modal').classList.add('show');
+                }, 800);
             }
         });
 
-        document.getElementById('install-btn').addEventListener('click', async () => {
+        document.getElementById('install-modal-btn').addEventListener('click', async () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
+                console.log('Install outcome:', outcome);
                 deferredPrompt = null;
-                document.getElementById('install-banner').classList.remove('show');
             } else {
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
                 if (isIOS) {
@@ -922,14 +1046,94 @@
                     alert('To install:\n1. Open browser menu (⋮)\n2. Tap "Install" or "Add to Home Screen"');
                 }
             }
+            document.getElementById('install-modal').classList.remove('show');
         });
 
-        // Show install on iOS
+        document.getElementById('install-modal-dismiss').addEventListener('click', () => {
+            document.getElementById('install-modal').classList.remove('show');
+        });
+
+        // iOS: auto-show modal with instructions
         if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !isStandalone) {
-            document.getElementById('install-banner').classList.add('show');
+            setTimeout(() => {
+                document.getElementById('install-modal').classList.add('show');
+            }, 800);
         }
-        if (isStandalone) {
-            document.getElementById('install-banner').style.display = 'none';
+
+        // ═══════════════════════════════════════════════
+        // QR Scanner
+        // ═══════════════════════════════════════════════
+        let scannerStream = null;
+        let scannerAnimFrame = null;
+        let scannerActive = false;
+
+        document.getElementById('scan-btn').addEventListener('click', startScanner);
+        document.getElementById('scanner-close').addEventListener('click', stopScanner);
+        document.getElementById('scanner-result-open').addEventListener('click', () => {
+            const url = document.getElementById('scanner-result-text').textContent;
+            if (url) window.open(url, '_blank');
+        });
+
+        async function startScanner() {
+            const overlay = document.getElementById('scanner-overlay');
+            const video = document.getElementById('scanner-video');
+            const result = document.getElementById('scanner-result');
+            result.classList.remove('show');
+
+            try {
+                scannerStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+                video.srcObject = scannerStream;
+                await video.play();
+                overlay.classList.add('show');
+                scannerActive = true;
+                scanFrame();
+            } catch (err) {
+                console.error('Camera error:', err);
+                alert('Camera access denied. Please allow camera permission to scan QR codes.');
+            }
+        }
+
+        function scanFrame() {
+            if (!scannerActive) return;
+            const video = document.getElementById('scanner-video');
+            const canvas = document.getElementById('scanner-canvas');
+            const ctx = canvas.getContext('2d');
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
+
+                if (code && code.data) {
+                    // QR detected!
+                    document.getElementById('scanner-result-text').textContent = code.data;
+                    document.getElementById('scanner-result').classList.add('show');
+                    // If it's a URL, auto-open after brief delay
+                    if (code.data.startsWith('http')) {
+                        setTimeout(() => {
+                            window.open(code.data, '_blank');
+                            stopScanner();
+                        }, 600);
+                        return;
+                    }
+                }
+            }
+            scannerAnimFrame = requestAnimationFrame(scanFrame);
+        }
+
+        function stopScanner() {
+            scannerActive = false;
+            if (scannerAnimFrame) cancelAnimationFrame(scannerAnimFrame);
+            if (scannerStream) {
+                scannerStream.getTracks().forEach(t => t.stop());
+                scannerStream = null;
+            }
+            document.getElementById('scanner-overlay').classList.remove('show');
+            document.getElementById('scanner-result').classList.remove('show');
         }
 
         // ═══════════════════════════════════════════════
@@ -1024,7 +1228,7 @@
 
             // Update page title
             if (slug) {
-                document.title = `${decodeURIComponent(name || 'QR Tray')} - Canopy QR Tray`;
+                document.title = `${decodeURIComponent(name || 'Canopy QR')} - Canopy QR`;
             }
         })();
     </script>

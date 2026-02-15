@@ -1,10 +1,11 @@
 // QR Widget Service Worker - Cache-first strategy for offline access
-const CACHE_NAME = 'qr-widget-v4';
+const CACHE_NAME = 'qr-widget-v5';
 const ASSETS_TO_CACHE = [
     '/qr-widget.html',
     '/qr-manifest.json',
     '/CC_blackbg.png',
     'https://unpkg.com/qr-code-styling@1.6.0/lib/qr-code-styling.js',
+    'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'
 ];
 

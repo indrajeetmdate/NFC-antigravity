@@ -1,7 +1,7 @@
 {
-    "name": "Canopy QR Tray",
-    "short_name": "QR Tray",
-    "description": "Your offline QR code wallet — save, switch, and share instantly",
+    "name": "Canopy QR",
+    "short_name": "Canopy QR",
+    "description": "Your offline QR code wallet — save, switch, scan, and share instantly",
     "start_url": "/qr-widget.html",
     "display": "standalone",
     "orientation": "portrait",
