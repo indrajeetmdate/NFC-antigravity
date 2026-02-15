@@ -278,8 +278,8 @@ const Dashboard: React.FC = () => {
                 </div>
                 {/* Text */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-bold text-white group-hover:text-gold transition-colors">QR Code Widget</h3>
-                  <p className="text-xs text-zinc-500 mt-0.5">Share your profile instantly • Add to Home Screen</p>
+                  <h3 className="text-base font-bold text-white group-hover:text-gold transition-colors">e-card: Canopy QR</h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">Save, scan & share QR codes offline</p>
                 </div>
                 {/* Arrow */}
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-zinc-600 group-hover:text-gold group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">

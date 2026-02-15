@@ -1290,13 +1290,14 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            // Auto-show install modal after 800ms (native install)
-            if (!isStandalone) {
-                setTimeout(() => {
-                    document.getElementById('install-modal').classList.add('show');
-                }, 800);
-            }
         });
+
+        // Always show install modal when opened in browser (not standalone)
+        if (!isStandalone) {
+            setTimeout(() => {
+                document.getElementById('install-modal').classList.add('show');
+            }, 800);
+        }
 
         document.getElementById('install-modal-btn').addEventListener('click', async () => {
             if (deferredPrompt) {
@@ -1319,19 +1320,12 @@
             document.getElementById('install-modal').classList.remove('show');
         });
 
-        // iOS: auto-show modal with instructions
-        if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !isStandalone) {
-            setTimeout(() => {
-                document.getElementById('install-modal').classList.add('show');
-            }, 800);
-        }
-
-        // Post-install: confirm home screen addition
+        // Post-install: show capabilities
         window.addEventListener('appinstalled', () => {
             console.log('QR Canopy installed!');
             document.getElementById('install-modal').classList.remove('show');
             setTimeout(() => {
-                alert('🎉 QR Canopy installed!\n\nThe app has been added to your Home Screen.\nYou can now access your QR codes offline anytime!');
+                alert('🎉 QR Canopy installed!\n\nSave, scan, switch & share QR codes — all offline, right from your pocket.');
             }, 500);
         });
 
