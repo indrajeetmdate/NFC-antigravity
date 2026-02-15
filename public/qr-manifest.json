@@ -1,7 +1,7 @@
 {
-    "name": "My QR Card",
-    "short_name": "QR Card",
-    "description": "Instant QR code for your digital profile - share anywhere",
+    "name": "Canopy QR Tray",
+    "short_name": "QR Tray",
+    "description": "Your offline QR code wallet — save, switch, and share instantly",
     "start_url": "/qr-widget.html",
     "display": "standalone",
     "orientation": "portrait",

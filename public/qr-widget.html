@@ -7,12 +7,12 @@
     <meta name="theme-color" content="#09090b" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="My QR Card" />
+    <meta name="apple-mobile-web-app-title" content="QR Tray" />
     <link rel="manifest" href="/qr-manifest.json" />
     <link rel="icon" href="/CC_blackbg.png" type="image/png" />
     <link rel="apple-touch-icon" href="/CC_blackbg.png" />
-    <title>My QR Card</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>Canopy QR Tray</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/qr-code-styling@1.6.0/lib/qr-code-styling.js"></script>
     <style>
         * {
@@ -27,48 +27,77 @@
             --border: #27272a;
             --gold: #d7ba52;
             --gold-dim: rgba(215, 186, 82, 0.15);
+            --gold-glow: rgba(215, 186, 82, 0.08);
             --text: #fafafa;
             --text-muted: #a1a1aa;
+            --text-dim: #71717a;
         }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
             color: var(--text);
-            min-height: 100vh;
-            min-height: 100dvh;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--gold);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.15);
+            border-radius: 100px;
+            font-size: 9px;
+            font-weight: 700;
+            color: #4ade80;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .badge-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+
+        /* ── Main QR Area ── */
+        .main-area {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            padding: 20px;
+            gap: 16px;
+            position: relative;
             overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
         }
 
-        .container {
-            width: 100%;
-            max-width: 400px;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 24px;
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(16px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Subtle radial glow behind QR */
         .qr-glow {
             position: relative;
         }
@@ -76,10 +105,9 @@
         .qr-glow::before {
             content: '';
             position: absolute;
-            inset: -40px;
-            background: radial-gradient(circle, var(--gold-dim) 0%, transparent 70%);
+            inset: -50px;
+            background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
             border-radius: 50%;
-            z-index: 0;
             pointer-events: none;
         }
 
@@ -89,8 +117,14 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 24px;
-            padding: 24px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(215, 186, 82, 0.05);
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .qr-card.swapping {
+            transform: scale(0.92);
+            opacity: 0.3;
         }
 
         #qr-code {
@@ -99,6 +133,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
         }
 
         #qr-code canvas,
@@ -108,319 +143,890 @@
             height: auto;
         }
 
-        .user-name {
-            font-size: 22px;
+        /* QR Center Icon Overlay */
+        .qr-icon-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background: var(--bg);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .qr-icon-overlay svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .qr-label {
+            font-size: 18px;
             font-weight: 700;
             letter-spacing: -0.02em;
             text-align: center;
+            transition: opacity 0.15s ease;
         }
 
-        .profile-url {
-            font-size: 12px;
+        .qr-sublabel {
+            font-size: 11px;
             color: var(--text-muted);
             text-align: center;
-            letter-spacing: 0.02em;
             word-break: break-all;
+            max-width: 300px;
+            transition: opacity 0.15s ease;
         }
 
-        .branding {
+        /* ── Bottom Tray ── */
+        .tray-wrapper {
+            flex-shrink: 0;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+            padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+        }
+
+        .tray {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 10px;
-            color: var(--text-muted);
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            opacity: 0.6;
+            gap: 12px;
+            padding: 0 16px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
 
-        .branding svg {
-            width: 14px;
-            height: 14px;
-            fill: var(--gold);
-        }
-
-        .install-btn {
+        .tray::-webkit-scrollbar {
             display: none;
-            width: 100%;
-            padding: 14px 24px;
-            background: var(--gold);
-            color: #09090b;
-            border: none;
-            border-radius: 14px;
-            font-size: 15px;
-            font-weight: 700;
+        }
+
+        .tray-item {
+            flex-shrink: 0;
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             transition: all 0.2s ease;
-            letter-spacing: 0.01em;
+            position: relative;
         }
 
-        .install-btn:hover {
-            background: #c5aa40;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(215, 186, 82, 0.25);
+        .tray-item:active {
+            transform: scale(0.9);
         }
 
-        .install-btn:active {
-            transform: scale(0.98);
+        .tray-item.active {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px var(--gold-dim), 0 4px 12px rgba(215, 186, 82, 0.15);
         }
 
-        .install-btn.visible {
-            display: block;
-        }
-
-        .share-btn {
-            width: 100%;
-            padding: 12px 24px;
-            background: transparent;
+        .tray-item svg {
+            width: 24px;
+            height: 24px;
             color: var(--text-muted);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
         }
 
-        .share-btn:hover {
-            color: var(--text);
+        .tray-item.active svg {
+            color: var(--gold);
+        }
+
+        .tray-item-label {
+            position: absolute;
+            bottom: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 8px;
+            font-weight: 600;
+            color: var(--text-dim);
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+        }
+
+        .tray-item.active .tray-item-label {
+            color: var(--gold);
+        }
+
+        /* Add Button */
+        .add-btn {
+            flex-shrink: 0;
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            background: var(--gold-dim);
+            border: 2px dashed var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            opacity: 0.7;
+        }
+
+        .add-btn:hover,
+        .add-btn:active {
+            opacity: 1;
+            transform: scale(0.95);
+        }
+
+        .add-btn svg {
+            width: 22px;
+            height: 22px;
+            color: var(--gold);
+        }
+
+        /* ── Add QR Picker Panel ── */
+        .picker-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .picker-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+
+        .picker-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-radius: 24px 24px 0 0;
+            padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+            z-index: 51;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        .picker-panel.show {
+            transform: translateY(0);
+        }
+
+        .picker-handle {
+            width: 36px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin: 0 auto 16px;
+        }
+
+        .picker-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .picker-grid {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: none;
+        }
+
+        .picker-grid::-webkit-scrollbar {
+            display: none;
+        }
+
+        .picker-option {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+
+        .picker-option:active {
+            transform: scale(0.9);
+        }
+
+        .picker-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.15s ease;
+        }
+
+        .picker-option:hover .picker-icon {
             border-color: var(--gold);
         }
 
-        .offline-badge {
-            display: none;
-            padding: 6px 14px;
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.2);
-            border-radius: 100px;
-            font-size: 10px;
-            font-weight: 700;
-            color: #4ade80;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
+        .picker-icon svg {
+            width: 24px;
+            height: 24px;
+            color: var(--gold);
         }
 
-        .offline-badge.visible {
-            display: inline-flex;
+        .picker-label {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        /* ── Input Modal ── */
+        .input-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(6px);
+            z-index: 60;
+            display: none;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .input-modal.show {
+            display: flex;
+        }
+
+        .input-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 28px 24px;
+            width: 100%;
+            max-width: 340px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .input-card h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .input-card p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .input-field {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 14px;
+            color: var(--text);
+            outline: none;
+            font-family: inherit;
+            margin-bottom: 8px;
+            transition: border-color 0.15s ease;
+        }
+
+        .input-field:focus {
+            border-color: var(--gold);
+        }
+
+        .input-field::placeholder {
+            color: var(--text-dim);
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .btn-save {
+            flex: 1;
+            padding: 12px;
+            background: var(--gold);
+            color: var(--bg);
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-save:active {
+            transform: scale(0.97);
+        }
+
+        .btn-cancel {
+            padding: 12px 16px;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* ── Delete Hint ── */
+        .delete-hint {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-align: center;
+            padding-top: 4px;
+            opacity: 0.6;
+        }
+
+        /* ── Install Banner ── */
+        .install-banner {
+            display: none;
+            padding: 10px 16px;
+            background: var(--gold-dim);
+            border-bottom: 1px solid rgba(215, 186, 82, 0.2);
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .install-banner.show {
+            display: flex;
+        }
+
+        .install-banner span {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gold);
+        }
+
+        .install-banner button {
+            background: var(--gold);
+            color: var(--bg);
+            border: none;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* ── Animations ── */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .animate-in {
+            animation: fadeIn 0.4s ease-out;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="offline-badge" id="offline-badge">
-            <span style="width:6px;height:6px;border-radius:50%;background:#4ade80;"></span>
-            Available Offline
+    <!-- Header -->
+    <div class="header">
+        <span class="header-title">Canopy QR Tray</span>
+        <div class="badge" id="offline-badge" style="display:none;">
+            <span class="badge-dot"></span>
+            Offline Ready
         </div>
+    </div>
 
+    <!-- Install Banner -->
+    <div class="install-banner" id="install-banner">
+        <span>📲 Add to Home Screen</span>
+        <button id="install-btn">Install</button>
+    </div>
+
+    <!-- Main QR Display -->
+    <div class="main-area animate-in">
         <div class="qr-glow">
-            <div class="qr-card">
+            <div class="qr-card" id="qr-card">
                 <div id="qr-code"></div>
+                <div class="qr-icon-overlay" id="qr-overlay" style="display:none;"></div>
             </div>
         </div>
+        <div class="qr-label" id="qr-label">Loading...</div>
+        <div class="qr-sublabel" id="qr-sublabel"></div>
+        <div class="delete-hint" id="delete-hint" style="display:none;">Long press a tile to delete</div>
+    </div>
 
-        <div class="user-name" id="user-name">Loading...</div>
-        <div class="profile-url" id="profile-url"></div>
+    <!-- Bottom Tray -->
+    <div class="tray-wrapper">
+        <div class="tray" id="tray"></div>
+    </div>
 
-        <button class="install-btn" id="install-btn">
-            📲 Add to Home Screen
-        </button>
+    <!-- Add QR Picker Overlay -->
+    <div class="picker-overlay" id="picker-overlay"></div>
+    <div class="picker-panel" id="picker-panel">
+        <div class="picker-handle"></div>
+        <div class="picker-title">+ Add QR Code</div>
+        <div class="picker-grid" id="picker-grid"></div>
+    </div>
 
-        <button class="share-btn" id="share-btn" style="display:none;">
-            Share QR Code
-        </button>
-
-        <div class="branding">
-            <svg viewBox="0 0 24 24">
-                <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-            </svg>
-            NFC cards by CanopyCorp
+    <!-- Input Modal -->
+    <div class="input-modal" id="input-modal">
+        <div class="input-card">
+            <h3 id="input-title">Add QR</h3>
+            <p id="input-subtitle">Paste the URL or text to encode</p>
+            <input class="input-field" id="input-label" placeholder="Label (e.g., My Instagram)" maxlength="24" />
+            <input class="input-field" id="input-url" placeholder="https://..." />
+            <div class="input-actions">
+                <button class="btn-cancel" id="input-cancel">Cancel</button>
+                <button class="btn-save" id="input-save">Save QR</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- Parse URL params with localStorage persistence ---
-        const params = new URLSearchParams(window.location.search);
-        let slug = params.get('slug') || '';
-        let name = params.get('name') || '';
-
-        // If we have URL params, save them to localStorage for offline/installed use
-        if (slug) {
-            localStorage.setItem('qr_widget_slug', slug);
-            localStorage.setItem('qr_widget_name', name || 'My Profile');
-        } else {
-            // No URL params (likely opened from home screen) — read from localStorage
-            slug = localStorage.getItem('qr_widget_slug') || '';
-            name = localStorage.getItem('qr_widget_name') || 'My Profile';
-        }
-
-        if (!name) name = 'My Profile';
-        const profileUrl = slug ? `https://canopycorp.in/#/p/${slug}` : '';
-
-        // --- Update UI ---
-        document.getElementById('user-name').textContent = decodeURIComponent(name);
-        document.getElementById('profile-url').textContent = profileUrl || 'No profile configured';
-        document.title = slug ? `${decodeURIComponent(name)} - QR Card` : 'QR Card';
-
-        // --- Update manifest start_url dynamically ---
-        // We need to update the manifest link to include the slug
-        const manifestLink = document.querySelector('link[rel="manifest"]');
-        const manifestUrl = `/qr-manifest.json`;
-        // Note: start_url in manifest is static, but the actual page URL has the params cached by SW
-
-        // --- Generate QR Code ---
-        if (slug) {
-            const qrSize = Math.min(window.innerWidth - 96, 280);
-            const qrCode = new QRCodeStyling({
-                width: qrSize,
-                height: qrSize,
-                data: profileUrl,
-                dotsOptions: {
-                    color: "#d7ba52",
-                    type: "rounded"
-                },
-                backgroundOptions: {
-                    color: "#09090b"
-                },
-                cornersSquareOptions: {
-                    color: "#d7ba52",
-                    type: "extra-rounded"
-                },
-                cornersDotOptions: {
-                    color: "#d7ba52",
-                    type: "dot"
-                },
-                imageOptions: {
-                    crossOrigin: "anonymous",
-                    margin: 4
-                }
-            });
-            qrCode.append(document.getElementById('qr-code'));
-        } else {
-            document.getElementById('qr-code').innerHTML =
-                '<p style="color:#a1a1aa;padding:40px;text-align:center;">No profile configured. Please open from your Dashboard first.</p>';
-        }
-
-        // --- Service Worker ---
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/qr-sw.js')
-                .then((reg) => {
-                    console.log('QR SW registered:', reg.scope);
-                    // Show offline badge if SW is active
-                    if (reg.active) {
-                        document.getElementById('offline-badge').classList.add('visible');
-                    }
-                    reg.addEventListener('statechange', () => {
-                        if (reg.active) {
-                            document.getElementById('offline-badge').classList.add('visible');
-                        }
-                    });
-                })
-                .catch((err) => console.error('SW registration failed:', err));
-
-            // Also show badge if already controlled
-            if (navigator.serviceWorker.controller) {
-                document.getElementById('offline-badge').classList.add('visible');
-            }
-        }
-
-        // --- Install Prompt (A2HS) ---
-        let deferredPrompt = null;
-
-        // Auto-show install modal
-        const showInstallModal = () => {
-            const modal = document.createElement('div');
-            modal.id = 'install-modal';
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
-                z-index: 100; display: flex; align-items: center; justify-content: center;
-                animation: fadeIn 0.3s ease-out;
-            `;
-            modal.innerHTML = `
-                <div style="background: #18181b; border: 1px solid #27272a; padding: 30px; border-radius: 24px; text-align: center; max-width: 90%; width: 320px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
-                    <img src="/CC_blackbg.png" style="width: 80px; height: 80px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.3);">
-                    <h2 style="color: white; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Install App</h2>
-                    <p style="color: #a1a1aa; font-size: 14px; margin-bottom: 24px; line-height: 1.5;">Add to Home Screen for instant access and offline use.</p>
-                    <button id="modal-install-btn" style="background: #d7ba52; color: #09090b; border: none; padding: 14px 0; width: 100%; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; margin-bottom: 12px;">Install App</button>
-                    <button id="modal-close-btn" style="background: transparent; border: none; color: #71717a; font-size: 14px; cursor: pointer;">Not Now</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            document.getElementById('modal-install-btn').onclick = async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log('Install outcome:', outcome);
-                    deferredPrompt = null;
-                }
-                document.body.removeChild(modal);
-            };
-
-            document.getElementById('modal-close-btn').onclick = () => {
-                document.body.removeChild(modal);
-            };
+        // ═══════════════════════════════════════════════
+        // APP ICON SVGs (inline, minimal, single-color)
+        // ═══════════════════════════════════════════════
+        const ICONS = {
+            canopy: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`,
+            whatsapp: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`,
+            instagram: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>`,
+            youtube: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`,
+            linkedin: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>`,
+            gpay: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 7.5h5.25a3.75 3.75 0 010 7.5H6.5v3.5h-3V7.5zm3 5h2.25a1.25 1.25 0 000-2.5H6.5v2.5zM13.5 7.5h3l2.25 6.3L21 7.5h3l-4.5 11h-3l-3-11z"/></svg>`,
+            wifi: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>`,
+            website: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`,
+            custom: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>`,
+            facebook: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>`,
+            twitter: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`,
+            maps: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`,
         };
+
+        // Picker presets
+        const PRESETS = [
+            { key: 'whatsapp', label: 'WhatsApp', placeholder: 'https://wa.me/91...' },
+            { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/...' },
+            { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/...' },
+            { key: 'linkedin', label: 'LinkedIn', placeholder: 'https://linkedin.com/in/...' },
+            { key: 'gpay', label: 'GPay', placeholder: 'upi://pay?pa=...' },
+            { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/...' },
+            { key: 'twitter', label: 'X/Twitter', placeholder: 'https://x.com/...' },
+            { key: 'maps', label: 'Maps', placeholder: 'https://maps.google.com/...' },
+            { key: 'wifi', label: 'WiFi', placeholder: 'WIFI:T:WPA;S:MyNet;P:pass;;' },
+            { key: 'website', label: 'Website', placeholder: 'https://...' },
+            { key: 'custom', label: 'Custom', placeholder: 'Any URL or text...' },
+        ];
+
+        // ═══════════════════════════════════════════════
+        // IndexedDB Wrapper
+        // ═══════════════════════════════════════════════
+        const DB_NAME = 'canopyQRTray';
+        const DB_STORE = 'qr_codes';
+        let db = null;
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = (e) => {
+                    const d = e.target.result;
+                    if (!d.objectStoreNames.contains(DB_STORE)) {
+                        d.createObjectStore(DB_STORE, { keyPath: 'id' });
+                    }
+                };
+                req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+                req.onerror = (e) => reject(e);
+            });
+        }
+
+        function dbGetAll() {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(DB_STORE, 'readonly');
+                const store = tx.objectStore(DB_STORE);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        function dbPut(item) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(DB_STORE, 'readwrite');
+                const store = tx.objectStore(DB_STORE);
+                const req = store.put(item);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        function dbDelete(id) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(DB_STORE, 'readwrite');
+                const store = tx.objectStore(DB_STORE);
+                const req = store.delete(id);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        // ═══════════════════════════════════════════════
+        // App State
+        // ═══════════════════════════════════════════════
+        let allQRs = [];
+        let activeId = null;
+        let currentQRInstance = null;
+        let selectedPreset = null;
+        let longPressTimer = null;
+
+        // ═══════════════════════════════════════════════
+        // QR Rendering
+        // ═══════════════════════════════════════════════
+        function renderMainQR(qr) {
+            const card = document.getElementById('qr-card');
+            const codeEl = document.getElementById('qr-code');
+            const overlay = document.getElementById('qr-overlay');
+            const label = document.getElementById('qr-label');
+            const sublabel = document.getElementById('qr-sublabel');
+
+            // Swap animation
+            card.classList.add('swapping');
+
+            setTimeout(() => {
+                // Clear old QR
+                codeEl.innerHTML = '';
+                overlay.style.display = 'none';
+
+                if (!qr || !qr.url) {
+                    label.textContent = 'No QR Selected';
+                    sublabel.textContent = 'Tap + to add a QR code';
+                    card.classList.remove('swapping');
+                    return;
+                }
+
+                const qrSize = Math.min(window.innerWidth - 96, 240);
+                currentQRInstance = new QRCodeStyling({
+                    width: qrSize,
+                    height: qrSize,
+                    data: qr.url,
+                    dotsOptions: { color: '#d7ba52', type: 'rounded' },
+                    backgroundOptions: { color: '#09090b' },
+                    cornersSquareOptions: { color: '#d7ba52', type: 'extra-rounded' },
+                    cornersDotOptions: { color: '#d7ba52', type: 'dot' },
+                    imageOptions: { crossOrigin: 'anonymous', margin: 4 }
+                });
+                currentQRInstance.append(codeEl);
+
+                // Show icon overlay
+                const icon = ICONS[qr.icon] || ICONS.custom;
+                overlay.innerHTML = icon;
+                overlay.style.display = 'flex';
+                overlay.style.color = '#d7ba52';
+
+                label.textContent = qr.label || 'QR Code';
+                sublabel.textContent = qr.url.length > 50 ? qr.url.substring(0, 50) + '...' : qr.url;
+
+                card.classList.remove('swapping');
+            }, 150);
+        }
+
+        // ═══════════════════════════════════════════════
+        // Tray Rendering
+        // ═══════════════════════════════════════════════
+        function renderTray() {
+            const tray = document.getElementById('tray');
+            const hint = document.getElementById('delete-hint');
+            tray.innerHTML = '';
+
+            allQRs.forEach(qr => {
+                const item = document.createElement('div');
+                item.className = 'tray-item' + (qr.id === activeId ? ' active' : '');
+                item.innerHTML = (ICONS[qr.icon] || ICONS.custom) + `<span class="tray-item-label">${(qr.label || '').substring(0, 6)}</span>`;
+                item.style.color = qr.id === activeId ? '#d7ba52' : '#a1a1aa';
+
+                item.addEventListener('click', () => {
+                    activeId = qr.id;
+                    renderMainQR(qr);
+                    renderTray();
+                });
+
+                // Long press to delete
+                item.addEventListener('touchstart', () => {
+                    longPressTimer = setTimeout(() => {
+                        if (confirm(`Delete "${qr.label}"?`)) {
+                            dbDelete(qr.id).then(() => {
+                                allQRs = allQRs.filter(q => q.id !== qr.id);
+                                if (activeId === qr.id) {
+                                    activeId = allQRs.length > 0 ? allQRs[0].id : null;
+                                    renderMainQR(allQRs[0] || null);
+                                }
+                                renderTray();
+                            });
+                        }
+                    }, 600);
+                }, { passive: true });
+                item.addEventListener('touchend', () => clearTimeout(longPressTimer), { passive: true });
+                item.addEventListener('touchmove', () => clearTimeout(longPressTimer), { passive: true });
+
+                tray.appendChild(item);
+            });
+
+            // Add button
+            const addBtn = document.createElement('div');
+            addBtn.className = 'add-btn';
+            addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4a1 1 0 011 1v6h6a1 1 0 110 2h-6v6a1 1 0 11-2 0v-6H5a1 1 0 110-2h6V5a1 1 0 011-1z"/></svg>`;
+            addBtn.addEventListener('click', showPicker);
+            tray.appendChild(addBtn);
+
+            hint.style.display = allQRs.length > 1 ? 'block' : 'none';
+        }
+
+        // ═══════════════════════════════════════════════
+        // Picker
+        // ═══════════════════════════════════════════════
+        function showPicker() {
+            const overlay = document.getElementById('picker-overlay');
+            const panel = document.getElementById('picker-panel');
+            overlay.classList.add('show');
+            setTimeout(() => panel.classList.add('show'), 10);
+        }
+
+        function hidePicker() {
+            const overlay = document.getElementById('picker-overlay');
+            const panel = document.getElementById('picker-panel');
+            panel.classList.remove('show');
+            setTimeout(() => overlay.classList.remove('show'), 300);
+        }
+
+        function buildPickerGrid() {
+            const grid = document.getElementById('picker-grid');
+            grid.innerHTML = '';
+            PRESETS.forEach(preset => {
+                const opt = document.createElement('div');
+                opt.className = 'picker-option';
+                opt.innerHTML = `
+                    <div class="picker-icon">${ICONS[preset.key] || ICONS.custom}</div>
+                    <span class="picker-label">${preset.label}</span>
+                `;
+                opt.addEventListener('click', () => {
+                    selectedPreset = preset;
+                    hidePicker();
+                    showInputModal(preset);
+                });
+                grid.appendChild(opt);
+            });
+        }
+
+        // ═══════════════════════════════════════════════
+        // Input Modal
+        // ═══════════════════════════════════════════════
+        function showInputModal(preset) {
+            const modal = document.getElementById('input-modal');
+            document.getElementById('input-title').textContent = `Add ${preset.label} QR`;
+            document.getElementById('input-subtitle').textContent = 'Paste the URL or text to encode';
+            document.getElementById('input-label').value = preset.label;
+            document.getElementById('input-url').value = '';
+            document.getElementById('input-url').placeholder = preset.placeholder || 'https://...';
+            setTimeout(() => {
+                modal.classList.add('show');
+                document.getElementById('input-url').focus();
+            }, 350);
+        }
+
+        function hideInputModal() {
+            document.getElementById('input-modal').classList.remove('show');
+            selectedPreset = null;
+        }
+
+        async function saveNewQR() {
+            const labelVal = document.getElementById('input-label').value.trim();
+            const urlVal = document.getElementById('input-url').value.trim();
+            if (!urlVal) return;
+
+            const newQR = {
+                id: 'qr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                label: labelVal || (selectedPreset?.label || 'QR'),
+                icon: selectedPreset?.key || 'custom',
+                url: urlVal,
+                createdAt: Date.now()
+            };
+
+            await dbPut(newQR);
+            allQRs.push(newQR);
+            activeId = newQR.id;
+            renderMainQR(newQR);
+            renderTray();
+            hideInputModal();
+
+            // Scroll tray to end
+            setTimeout(() => {
+                const tray = document.getElementById('tray');
+                tray.scrollLeft = tray.scrollWidth;
+            }, 100);
+        }
+
+        // ═══════════════════════════════════════════════
+        // Install Prompt
+        // ═══════════════════════════════════════════════
+        let deferredPrompt = null;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            document.getElementById('install-btn').classList.add('visible');
-
-            // Auto-show modal after a short delay to ensure UI is ready
-            // Check if we haven't shown it recently (optional, but good UX)
-            // For now, force show it as per "auto add" request
-            setTimeout(showInstallModal, 1000);
+            if (!isStandalone) {
+                document.getElementById('install-banner').classList.add('show');
+            }
         });
 
         document.getElementById('install-btn').addEventListener('click', async () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                console.log('Install outcome:', outcome);
                 deferredPrompt = null;
-                document.getElementById('install-btn').classList.remove('visible');
+                document.getElementById('install-banner').classList.remove('show');
             } else {
-                // Fallback: Show manual instructions
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
                 if (isIOS) {
-                    alert('To add to Home Screen:\n1. Tap the Share button (bottom bar)\n2. Scroll down and tap "Add to Home Screen"');
+                    alert('To install:\n1. Tap the Share button\n2. Tap "Add to Home Screen"');
                 } else {
-                    alert('To add to Home Screen:\n1. Open browser menu (⋮)\n2. Tap "Add to Home Screen" or "Install"');
+                    alert('To install:\n1. Open browser menu (⋮)\n2. Tap "Install" or "Add to Home Screen"');
                 }
             }
         });
 
-        // Show install button on iOS (no beforeinstallprompt event)
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-        if (isIOS && !isStandalone) {
-            document.getElementById('install-btn').classList.add('visible');
-            // iOS doesn't support programmatic prompt, so we can't show the "auto" modal effectively
-            // apart from maybe instruction. We'll leave it as prominent button.
+        // Show install on iOS
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !isStandalone) {
+            document.getElementById('install-banner').classList.add('show');
         }
-
-        // Hide install button if launched from home screen
         if (isStandalone) {
-            document.getElementById('install-btn').style.display = 'none';
+            document.getElementById('install-banner').style.display = 'none';
         }
 
-        // --- Web Share API ---
-        if (navigator.share) {
-            const shareBtn = document.getElementById('share-btn');
-            shareBtn.style.display = 'block';
-            shareBtn.addEventListener('click', () => {
-                navigator.share({
-                    title: `${decodeURIComponent(name)}'s Profile`,
-                    text: `Check out ${decodeURIComponent(name)}'s digital profile`,
-                    url: profileUrl
-                }).catch(() => { });
-            });
+        // ═══════════════════════════════════════════════
+        // Service Worker
+        // ═══════════════════════════════════════════════
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/qr-sw.js')
+                .then((reg) => {
+                    if (reg.active || navigator.serviceWorker.controller) {
+                        document.getElementById('offline-badge').style.display = 'inline-flex';
+                    }
+                    reg.addEventListener('updatefound', () => {
+                        const sw = reg.installing;
+                        sw.addEventListener('statechange', () => {
+                            if (sw.state === 'activated') {
+                                document.getElementById('offline-badge').style.display = 'inline-flex';
+                            }
+                        });
+                    });
+                })
+                .catch(err => console.error('SW error:', err));
+
+            if (navigator.serviceWorker.controller) {
+                document.getElementById('offline-badge').style.display = 'inline-flex';
+            }
         }
+
+        // ═══════════════════════════════════════════════
+        // Event Listeners
+        // ═══════════════════════════════════════════════
+        document.getElementById('picker-overlay').addEventListener('click', hidePicker);
+        document.getElementById('input-cancel').addEventListener('click', hideInputModal);
+        document.getElementById('input-save').addEventListener('click', saveNewQR);
+        document.getElementById('input-url').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') saveNewQR();
+        });
+
+        // ═══════════════════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════════════════
+        (async function init() {
+            await openDB();
+            allQRs = await dbGetAll();
+
+            // Sort by creation time
+            allQRs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+            // Seed profile QR from URL params or localStorage
+            const params = new URLSearchParams(window.location.search);
+            let slug = params.get('slug') || '';
+            let name = params.get('name') || '';
+
+            if (slug) {
+                localStorage.setItem('qr_widget_slug', slug);
+                localStorage.setItem('qr_widget_name', name || 'My Profile');
+            } else {
+                slug = localStorage.getItem('qr_widget_slug') || '';
+                name = localStorage.getItem('qr_widget_name') || 'My Profile';
+            }
+
+            if (slug) {
+                const profileUrl = `https://canopycorp.in/#/p/${slug}`;
+                const existingProfile = allQRs.find(q => q.id === 'profile_qr');
+
+                if (!existingProfile) {
+                    const profileQR = {
+                        id: 'profile_qr',
+                        label: decodeURIComponent(name || 'My Profile'),
+                        icon: 'canopy',
+                        url: profileUrl,
+                        createdAt: 0 // Always first
+                    };
+                    await dbPut(profileQR);
+                    allQRs.unshift(profileQR);
+                } else {
+                    // Update if slug changed
+                    if (existingProfile.url !== profileUrl) {
+                        existingProfile.url = profileUrl;
+                        existingProfile.label = decodeURIComponent(name || 'My Profile');
+                        await dbPut(existingProfile);
+                    }
+                }
+            }
+
+            // Set active
+            activeId = allQRs.length > 0 ? allQRs[0].id : null;
+
+            // Build UI
+            buildPickerGrid();
+            renderTray();
+            renderMainQR(allQRs[0] || null);
+
+            // Update page title
+            if (slug) {
+                document.title = `${decodeURIComponent(name || 'QR Tray')} - Canopy QR Tray`;
+            }
+        })();
     </script>
 </body>
 
