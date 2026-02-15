@@ -5,8 +5,18 @@ export const generateVCardContent = (profile: Partial<Profile>): string => {
   const content = [
     'BEGIN:VCARD',
     'VERSION:3.0',
-    `FN:${profile.full_name || ''}`,
-    `N:${(profile.full_name || '').split(' ').reverse().join(';')};;;`,
+    `FN:${(profile.full_name || '').trim()}`,
+    `N:${(() => {
+      const parts = (profile.full_name || '').trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 0) return ';;;;';
+      if (parts.length === 1) return `;;${parts[0]};;`; // Treat single name as "Given Name"
+
+      const familyName = parts.pop(); // Last part is Family Name
+      const givenName = parts.shift(); // First part is Given Name
+      const middleNames = parts.join(' '); // Remainder is Middle Name(s)
+
+      return `${familyName};${givenName};${middleNames};;`;
+    })()}`,
     profile.company ? `ORG:${profile.company}` : '',
     profile.phone ? `TEL;TYPE=CELL:${profile.phone}` : '',
     profile.email ? `EMAIL;TYPE=INTERNET:${profile.email}` : '',
