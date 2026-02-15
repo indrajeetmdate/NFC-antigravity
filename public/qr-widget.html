@@ -1354,10 +1354,36 @@
         document.getElementById('scanner-result-save').addEventListener('click', async () => {
             const data = document.getElementById('scanner-result-text').textContent;
             if (!data) return;
+
+            // Auto-detect app by matching URL against known patterns
+            const APP_PATTERNS = [
+                { pattern: /wa\.me|whatsapp\.com/i, icon: 'whatsapp', label: 'WhatsApp' },
+                { pattern: /instagram\.com/i, icon: 'instagram', label: 'Instagram' },
+                { pattern: /youtube\.com|youtu\.be/i, icon: 'youtube', label: 'YouTube' },
+                { pattern: /linkedin\.com/i, icon: 'linkedin', label: 'LinkedIn' },
+                { pattern: /upi:\/\/pay/i, icon: 'upi', label: 'UPI' },
+                { pattern: /facebook\.com|fb\.com/i, icon: 'facebook', label: 'Facebook' },
+                { pattern: /x\.com|twitter\.com/i, icon: 'twitter', label: 'X/Twitter' },
+                { pattern: /maps\.google|goo\.gl\/maps|google\.\w+\/maps/i, icon: 'maps', label: 'Maps' },
+                { pattern: /^WIFI:/i, icon: 'wifi', label: 'WiFi' },
+                { pattern: /canopycorp\.in/i, icon: 'canopy', label: 'Canopy Profile' },
+            ];
+
+            let detectedIcon = data.startsWith('http') ? 'website' : 'custom';
+            let detectedLabel = 'Scanned QR';
+
+            for (const app of APP_PATTERNS) {
+                if (app.pattern.test(data)) {
+                    detectedIcon = app.icon;
+                    detectedLabel = app.label;
+                    break;
+                }
+            }
+
             const newQR = {
                 id: 'qr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                label: 'Scanned QR',
-                icon: data.startsWith('http') ? 'website' : 'custom',
+                label: detectedLabel,
+                icon: detectedIcon,
                 url: data,
                 createdAt: Date.now()
             };
