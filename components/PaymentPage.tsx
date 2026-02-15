@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSupabase } from '../lib/supabase';
 import { useProfile } from '../context/ProfileContext'; // Use context
@@ -19,6 +19,10 @@ const PaymentPage: React.FC = () => {
     const [gettingLocation, setGettingLocation] = useState(false);
     const [couponCode, setCouponCode] = useState('');
 
+    // Ref to track if the user just completed a payment on this page
+    // This prevents the redirect from firing after payment refreshes the profile
+    const hasJustPaid = useRef(false);
+
     const navigate = useNavigate();
     const { showToast } = useToast();
 
@@ -29,6 +33,9 @@ const PaymentPage: React.FC = () => {
                 navigate('/login');
                 return;
             }
+
+            // Skip redirect if the user just paid on this page
+            if (hasJustPaid.current) return;
 
             // Check if subscription is valid (not expired)
             // If valid, redirect to dashboard. If expired, allow payment (renewal).
@@ -51,40 +58,16 @@ const PaymentPage: React.FC = () => {
                 }
             }
 
-            // ONLY redirect if subscription is valid AND we are not currently showing success modals
-            // and the user didn't just pay (we can infer "just paid" if they are on this page despite being valid, 
-            // but we need to distinguish between "already valid, came here by mistake" vs "just became valid")
-            // The simplest fix for the user's issue: If showQrPrompt or showFeedbackModal is true, DO NOT redirect.
-            // However, those selected states are local.
-            // We can check if we likely just paid? 
-            // Actually, we can just use a ref or check if we have "just submitted".
-            // But better: if the user is here and valid, we usually redirect. 
-            // We should only redirect if NOT (showQrPrompt || showFeedbackModal).
-            // But we can't access state in this effect easily without adding them to deps, which triggers loops.
-
-            // Fix: We'll skip the redirect if we are currently "busy" or if the user is interacting.
-            // But since this effect runs on mount/update, we can just add a check:
-            if (isSubscriptionValid && !showQrPrompt && !showFeedbackModal && !isSubmittingUpi) {
-                // To be safe, let's only redirect if we haven't just finished a payment.
-                // We can use a session storage flag or just rely on the fact that 
-                // if we just paid, showQrPrompt would be true (but state updates might be async).
-                // Let's rely on the modals. We need to add them to dependency array?
-                // No, sticking them in dependency array causes re-runs.
-                // We'll trust that if this effect runs, we check the current value.
-                // NOTE: We need to NOT redirect if the user just paid.
-                // When user pays: handleUpiSubmit -> sets showQrPrompt(true) -> refreshProfile() -> profile updates -> Effect runs.
-                // At that point, showQrPrompt IS true. So we just need to include it in the condition.
-                // We must add showQrPrompt and showFeedbackModal to the dependency array for this to work correctly.
+            if (isSubscriptionValid) {
                 showToast("You have an active subscription. Redirecting to dashboard...", "info");
                 setTimeout(() => navigate('/dashboard'), 1500);
             }
-
             // Pre-fill address if available
             if (profile.delivery_address_url && !deliveryAddress) {
                 setDeliveryAddress(profile.delivery_address_url);
             }
         }
-    }, [profile, profileLoading, navigate, showToast, showQrPrompt, showFeedbackModal, isSubmittingUpi]);
+    }, [profile, profileLoading, navigate, showToast]);
 
     // Check various coupon states
     const isLoyaltyApplied = couponCode.trim().toUpperCase() === 'LOYALTYCARD' && upiId === '111111111111';
@@ -167,6 +150,7 @@ const PaymentPage: React.FC = () => {
         if (!upiId.trim() || upiId.trim().length !== 12 || !profile || !deliveryAddress.trim()) return;
 
         setIsSubmittingUpi(true);
+        hasJustPaid.current = true; // Prevent redirect after profile refresh
         try {
             // Use RPC call to submit payment and address
             const { error } = await getSupabase().rpc('submit_payment', {
