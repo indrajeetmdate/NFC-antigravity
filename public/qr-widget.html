@@ -329,10 +329,52 @@
 
         // --- Install Prompt (A2HS) ---
         let deferredPrompt = null;
+
+        // Auto-show install modal
+        const showInstallModal = () => {
+            const modal = document.createElement('div');
+            modal.id = 'install-modal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+                z-index: 100; display: flex; align-items: center; justify-content: center;
+                animation: fadeIn 0.3s ease-out;
+            `;
+            modal.innerHTML = `
+                <div style="background: #18181b; border: 1px solid #27272a; padding: 30px; border-radius: 24px; text-align: center; max-width: 90%; width: 320px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                    <img src="/CC_blackbg.png" style="width: 80px; height: 80px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.3);">
+                    <h2 style="color: white; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Install App</h2>
+                    <p style="color: #a1a1aa; font-size: 14px; margin-bottom: 24px; line-height: 1.5;">Add to Home Screen for instant access and offline use.</p>
+                    <button id="modal-install-btn" style="background: #d7ba52; color: #09090b; border: none; padding: 14px 0; width: 100%; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; margin-bottom: 12px;">Install App</button>
+                    <button id="modal-close-btn" style="background: transparent; border: none; color: #71717a; font-size: 14px; cursor: pointer;">Not Now</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('modal-install-btn').onclick = async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log('Install outcome:', outcome);
+                    deferredPrompt = null;
+                }
+                document.body.removeChild(modal);
+            };
+
+            document.getElementById('modal-close-btn').onclick = () => {
+                document.body.removeChild(modal);
+            };
+        };
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             document.getElementById('install-btn').classList.add('visible');
+
+            // Auto-show modal after a short delay to ensure UI is ready
+            // Check if we haven't shown it recently (optional, but good UX)
+            // For now, force show it as per "auto add" request
+            setTimeout(showInstallModal, 1000);
         });
 
         document.getElementById('install-btn').addEventListener('click', async () => {
@@ -358,6 +400,8 @@
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
         if (isIOS && !isStandalone) {
             document.getElementById('install-btn').classList.add('visible');
+            // iOS doesn't support programmatic prompt, so we can't show the "auto" modal effectively
+            // apart from maybe instruction. We'll leave it as prominent button.
         }
 
         // Hide install button if launched from home screen

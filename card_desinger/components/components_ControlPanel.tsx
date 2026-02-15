@@ -550,7 +550,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     {/* Upload Button - 3/4 Width */}
                     <button
                         onClick={onTriggerUpload}
-                        className="col-span-3 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-gold/90 to-gold text-black font-bold hover:from-gold hover:to-gold/80 transition-all text-xs h-14 shadow-lg shadow-gold/10"
+                        className="col-span-3 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-gold/90 to-gold text-black font-bold hover:from-gold hover:to-gold/80 transition-all text-xs h-20 shadow-lg shadow-gold/10"
                         title="Upload Card Design"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -560,7 +560,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </button>
 
                     {/* Tools Area - 1/4 Width - Stacked Grid */}
-                    <div className="col-span-1 grid grid-cols-1 gap-1 h-14">
+                    <div className="col-span-1 grid grid-cols-1 gap-1 h-20">
                         {/* Colors Row */}
                         <div className="grid grid-cols-2 gap-1 h-1/2">
                             {/* NFC Color */}
