@@ -251,10 +251,24 @@ const ProfileEditor: React.FC = () => {
         setEditingId(newBtn.id);
     };
 
+    const SOCIAL_URL_PREFIXES: Record<string, string> = {
+        whatsapp: 'https://wa.me/91',
+        linkedin: 'https://www.linkedin.com/in/',
+        instagram: 'https://www.instagram.com/',
+        facebook: 'https://www.facebook.com/',
+        twitter: 'https://x.com/',
+        youtube: 'https://www.youtube.com/',
+        github: 'https://github.com/',
+        maps: 'https://maps.google.com/',
+        website: 'https://',
+        custom: 'https://',
+    };
+
     const addSocialLink = (subtype: string) => {
         const preset = SOCIAL_PRESETS.find(p => p.key === subtype);
         if (!preset) return;
-        const newBtn = createButton(subtype, preset.label, subtype === 'whatsapp' ? 'https://wa.me/' : 'https://');
+        const prefix = SOCIAL_URL_PREFIXES[subtype] || 'https://';
+        const newBtn = createButton(subtype, preset.label, prefix);
         setFormData(prev => ({
             ...prev,
             custom_elements: [...(prev.custom_elements || []), newBtn]
