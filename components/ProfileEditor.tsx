@@ -18,6 +18,7 @@ const INITIAL_STATE: Partial<Profile> = {
     full_name: '',
     profile_slug: '',
     company: '',
+    job_title: '',
     bio: '',
     phone: '',
     email: '',
@@ -591,7 +592,8 @@ const ProfileEditor: React.FC = () => {
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div><label className={labelClass}>Full Name</label><input type="text" name="full_name" value={formData.full_name || ''} onChange={handleInputChange} className={inputClass} /></div>
-                                    <div><label className={labelClass}>Company / Title</label><input type="text" name="company" value={formData.company || ''} onChange={handleInputChange} className={inputClass} /></div>
+                                    <div><label className={labelClass}>Company</label><input type="text" name="company" value={formData.company || ''} onChange={handleInputChange} className={inputClass} placeholder="e.g. Canopy Corp" /></div>
+                                    <div><label className={labelClass}>Title / Designation</label><input type="text" name="job_title" value={formData.job_title || ''} onChange={handleInputChange} className={inputClass} placeholder="e.g. Founder & CEO" /></div>
                                 </div>
                                 <div>
                                     <label className={labelClass}>

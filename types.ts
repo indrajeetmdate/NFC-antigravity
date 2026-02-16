@@ -45,6 +45,7 @@ export interface Profile {
   profile_slug: string;
   full_name: string;
   company: string | null;
+  job_title: string | null;
   bio: string | null;
   phone: string | null;
   email: string | null;

@@ -18,6 +18,7 @@ export const generateVCardContent = (profile: Partial<Profile>): string => {
       return `${familyName};${givenName};${middleNames};;`;
     })()}`,
     profile.company ? `ORG:${profile.company}` : '',
+    profile.job_title ? `TITLE:${profile.job_title}` : '',
     profile.phone ? `TEL;TYPE=CELL:${profile.phone}` : '',
     profile.email ? `EMAIL;TYPE=INTERNET:${profile.email}` : '',
     profile.website ? `URL:${profile.website}` : '',
