@@ -246,12 +246,11 @@ const PublicProfile: React.FC<PublicProfileProps> = ({ profileData, isInteractiv
 
         <h1 className="text-2xl md:text-3xl font-bold mt-4" style={textStyle}>{profile.full_name}</h1>
 
-        {(profile.job_title || profile.company) && (
-          <p className="text-xl font-medium mt-1 opacity-90" style={textStyle}>
-            {profile.job_title && profile.company
-              ? `${profile.job_title} at ${profile.company}`
-              : profile.job_title || profile.company}
-          </p>
+        {profile.job_title && (
+          <p className="text-xl font-medium mt-1 opacity-90" style={textStyle}>{profile.job_title}</p>
+        )}
+        {profile.company && (
+          <p className="text-lg font-medium mt-0.5 opacity-75" style={textStyle}>{profile.company}</p>
         )}
 
         {profile.bio && (
